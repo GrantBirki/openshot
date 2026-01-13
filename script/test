@@ -3,33 +3,15 @@
 set -euo pipefail
 
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo -e "${RED}Tests require macOS.${OFF}"
-  exit 1
-fi
-
-if ! command -v xcodebuild >/dev/null 2>&1; then
-  echo -e "${RED}xcodebuild not found. Install Xcode or Command Line Tools.${OFF}"
-  exit 1
-fi
+require_macos error "Tests require macOS."
+require_tool xcodebuild "xcodebuild not found. Install Xcode or Command Line Tools."
 
 script/update
 
-PROJECT_PATH="${PROJECT_PATH:-}"
-if [[ -z "$PROJECT_PATH" ]]; then
-  PROJECT_PATH=$(find "$DIR" -maxdepth 1 -name "*.xcodeproj" -print -quit)
-fi
-
-if [[ -z "$PROJECT_PATH" ]]; then
-  echo -e "${RED}No .xcodeproj found. Run script/update.${OFF}"
-  exit 1
-fi
-
-APP_NAME="${APP_NAME:-OpenShot}"
-SCHEME="${SCHEME:-$APP_NAME}"
-CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="${DERIVED_DATA:-$DIR/build/DerivedData}"
+PROJECT_PATH=$(find_project)
+set_xcodebuild_vars
 
 echo -e "${BLUE}Testing ${SCHEME} (${CONFIGURATION})...${OFF}"
 

@@ -3,13 +3,11 @@
 set -euo pipefail
 
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
 
 echo -e "${BLUE}🥾 Bootstrapping...${OFF}"
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo -e "${YELLOW}Skipping bootstrap on non-macOS host.${OFF}"
-  exit 0
-fi
+require_macos skip "Skipping bootstrap on non-macOS host."
 
 if ! xcode-select -p >/dev/null 2>&1; then
   echo -e "${RED}Xcode Command Line Tools not found.${OFF}"
@@ -17,11 +15,7 @@ if ! xcode-select -p >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v brew >/dev/null 2>&1; then
-  echo -e "${RED}Homebrew not found.${OFF}"
-  echo "Install from https://brew.sh/"
-  exit 1
-fi
+require_tool brew "Homebrew not found. Install from https://brew.sh/"
 
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
@@ -41,11 +35,6 @@ for dep in "${deps[@]}"; do
   fi
 done
 
-if [[ -f "$DIR/project.yml" ]]; then
-  echo -e "${BLUE}Generating Xcode project...${OFF}"
-  (cd "$DIR" && xcodegen generate)
-else
-  echo -e "${YELLOW}project.yml not found; skipping XcodeGen.${OFF}"
-fi
+generate_xcodeproj
 
 echo -e "${GREEN}✅ Bootstrap complete!${OFF}"

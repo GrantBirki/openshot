@@ -3,17 +3,6 @@
 set -euo pipefail
 
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
 
-if [[ ! -f "$DIR/project.yml" ]]; then
-  echo -e "${YELLOW}project.yml not found; nothing to update.${OFF}"
-  exit 0
-fi
-
-if ! command -v xcodegen >/dev/null 2>&1; then
-  echo -e "${RED}xcodegen not found. Run script/bootstrap.${OFF}"
-  exit 1
-fi
-
-echo -e "${BLUE}Generating Xcode project...${OFF}"
-(cd "$DIR" && xcodegen generate)
-echo -e "${GREEN}✅ Update complete!${OFF}"
+generate_xcodeproj
