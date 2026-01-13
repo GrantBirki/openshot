@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+source script/env "$@"
+
+echo -e "${BLUE}🥾 Bootstrapping...${OFF}"
+
+# TODO
+
+echo -e "${GREEN}✅ Bootstrap complete!${OFF}"
