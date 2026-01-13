@@ -25,8 +25,18 @@ final class MenuBarController: NSObject {
     }
 
     func start() {
-        statusItem.button?.title = "OpenShot"
+        if let button = statusItem.button {
+            if let image = NSImage(systemSymbolName: "camera.fill", accessibilityDescription: "OpenShot") {
+                button.image = image
+                button.imagePosition = .imageOnly
+            } else {
+                button.title = "OpenShot"
+            }
+        } else {
+            NSLog("Status item button unavailable")
+        }
         statusItem.menu = buildMenu()
+        NSLog("Menu bar item started")
     }
 
     private func buildMenu() -> NSMenu {

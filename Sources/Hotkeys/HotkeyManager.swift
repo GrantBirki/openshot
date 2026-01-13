@@ -33,6 +33,7 @@ final class HotkeyManager {
 
         hotKeyRefs[id] = ref
         handlers[id] = handler
+        NSLog("Hotkey registered: \(hotkey.display)")
     }
 
     func unregisterAll() {

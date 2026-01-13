@@ -27,6 +27,7 @@ final class AppController {
     }
 
     func start() {
+        NSLog("OpenShot AppController start")
         menuBarController.start()
         registerHotkeys()
         observeSettings()
@@ -55,21 +56,30 @@ final class AppController {
         hotkeyManager.unregisterAll()
 
         if let selectionHotkey = HotkeyParser.parse(settings.hotkeySelection) {
+            NSLog("Registering selection hotkey: \(selectionHotkey.display)")
             hotkeyManager.register(hotkey: selectionHotkey) { [weak self] in
                 self?.captureManager.captureSelection()
             }
+        } else {
+            NSLog("Selection hotkey not set or invalid")
         }
 
         if let fullScreenHotkey = HotkeyParser.parse(settings.hotkeyFullScreen) {
+            NSLog("Registering full screen hotkey: \(fullScreenHotkey.display)")
             hotkeyManager.register(hotkey: fullScreenHotkey) { [weak self] in
                 self?.captureManager.captureFullScreen()
             }
+        } else {
+            NSLog("Full screen hotkey not set or invalid")
         }
 
         if let windowHotkey = HotkeyParser.parse(settings.hotkeyWindow) {
+            NSLog("Registering window hotkey: \(windowHotkey.display)")
             hotkeyManager.register(hotkey: windowHotkey) { [weak self] in
                 self?.captureManager.captureWindow()
             }
+        } else {
+            NSLog("Window hotkey not set or invalid")
         }
     }
 }

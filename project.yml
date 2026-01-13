@@ -13,6 +13,11 @@ targets:
       - Sources
     info:
       path: Info.plist
+      properties:
+        CFBundleDisplayName: OpenShot
+        LSUIElement: true
+        NSHighResolutionCapable: true
+        NSScreenCaptureUsageDescription: OpenShot needs screen recording access to capture screenshots.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.grantbirki.openshot

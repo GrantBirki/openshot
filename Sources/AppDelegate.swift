@@ -1,11 +1,10 @@
 import Cocoa
 
-@main
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var appController: AppController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        NSLog("OpenShot did finish launching")
         appController = AppController()
         appController?.start()
     }
