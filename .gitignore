@@ -16,5 +16,6 @@ coverage
 coverage.html
 
 tmp/
+.tmp/
 
 *.secret
