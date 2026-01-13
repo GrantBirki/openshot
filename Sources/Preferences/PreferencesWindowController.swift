@@ -1,0 +1,25 @@
+import Cocoa
+import SwiftUI
+
+final class PreferencesWindowController: NSWindowController {
+    init(settings: SettingsStore) {
+        let view = PreferencesView(settings: settings)
+        let hosting = NSHostingController(rootView: view)
+        let window = NSWindow(contentViewController: hosting)
+        window.title = "OpenShot Preferences"
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.setContentSize(NSSize(width: 520, height: 420))
+        window.isReleasedWhenClosed = false
+        super.init(window: window)
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    func show() {
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}

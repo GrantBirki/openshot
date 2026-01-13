@@ -18,3 +18,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.grantbirki.openshot
         MARKETING_VERSION: 0.0.0
         CURRENT_PROJECT_VERSION: 0.0.0
+  OpenShotTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    dependencies:
+      - target: OpenShot
