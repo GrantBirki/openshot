@@ -84,6 +84,7 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
+        .background(FocusClearView())
         .padding(20)
         .frame(minWidth: 560, minHeight: 480)
     }
@@ -97,6 +98,75 @@ struct PreferencesView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             settings.customSavePath = url.path
+        }
+    }
+}
+
+private struct FocusClearView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.attach(to: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.attach(to: nsView)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        private weak var view: NSView?
+        private var monitor: Any?
+
+        func attach(to view: NSView) {
+            self.view = view
+            if monitor != nil {
+                return
+            }
+
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+                guard let self = self,
+                      let view = self.view,
+                      let window = view.window,
+                      window == event.window,
+                      let contentView = window.contentView
+                else {
+                    return event
+                }
+
+                let point = contentView.convert(event.locationInWindow, from: nil)
+                if let hitView = contentView.hitTest(point), self.isTextInput(view: hitView) {
+                    return event
+                }
+
+                window.makeFirstResponder(nil)
+                return event
+            }
+        }
+
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+
+        private func isTextInput(view: NSView) -> Bool {
+            if view is NSTextView || view is NSTextField {
+                return true
+            }
+
+            var current = view.superview
+            while let currentView = current {
+                if currentView is NSTextField {
+                    return true
+                }
+                current = currentView.superview
+            }
+
+            return false
         }
     }
 }
