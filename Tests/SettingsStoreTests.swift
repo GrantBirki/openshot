@@ -21,7 +21,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertFalse(settings.autoLaunchEnabled)
         XCTAssertEqual(settings.saveDelaySeconds, 7)
         XCTAssertTrue(settings.previewTimeoutEnabled)
-        XCTAssertEqual(settings.previewTimeoutSeconds, 7)
+        XCTAssertEqual(settings.previewTimeout, 7)
         XCTAssertTrue(settings.previewEnabled)
         XCTAssertEqual(settings.saveLocationOption, .downloads)
         XCTAssertEqual(settings.filenamePrefix, "screenshot")
@@ -34,7 +34,6 @@ final class SettingsStoreTests: XCTestCase {
         settings.autoLaunchEnabled = true
         settings.saveDelaySeconds = 3
         settings.previewTimeoutEnabled = false
-        settings.previewTimeoutSeconds = 12
         settings.previewEnabled = false
         settings.saveLocationOption = .desktop
         settings.customSavePath = "/tmp"
@@ -47,7 +46,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertTrue(settings.autoLaunchEnabled)
         XCTAssertEqual(settings.saveDelaySeconds, 3)
         XCTAssertFalse(settings.previewTimeoutEnabled)
-        XCTAssertEqual(settings.previewTimeoutSeconds, 12)
+        XCTAssertNil(settings.previewTimeout)
         XCTAssertFalse(settings.previewEnabled)
         XCTAssertEqual(settings.saveLocationOption, .desktop)
         XCTAssertEqual(settings.customSavePath, "/tmp")
@@ -55,5 +54,12 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(settings.hotkeySelection, "ctrl+z")
         XCTAssertEqual(settings.hotkeyFullScreen, "ctrl+shift+z")
         XCTAssertEqual(settings.hotkeyWindow, "ctrl+w")
+    }
+
+    func testPreviewTimeoutUsesSaveDelay() {
+        let settings = SettingsStore(defaults: defaults)
+        settings.saveDelaySeconds = 5
+        settings.previewTimeoutEnabled = true
+        XCTAssertEqual(settings.previewTimeout, 5)
     }
 }

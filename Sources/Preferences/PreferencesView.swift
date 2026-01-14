@@ -22,7 +22,6 @@ struct PreferencesView: View {
                 LabeledContent("Filename prefix") {
                     TextField("", text: $settings.filenamePrefix)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 220)
                 }
 
                 LabeledContent("Save location") {
@@ -32,7 +31,6 @@ struct PreferencesView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
                 }
 
                 if settings.saveLocationOption == .custom {
@@ -44,14 +42,13 @@ struct PreferencesView: View {
                                 chooseFolder()
                             }
                         }
-                        .frame(width: 300)
                     }
                 }
 
                 LabeledContent("Save delay (seconds)") {
                     TextField("", value: $settings.saveDelaySeconds, formatter: numberFormatter)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
+                        .frame(maxWidth: 80)
                 }
             }
 
@@ -59,15 +56,11 @@ struct PreferencesView: View {
                 Toggle("Show floating preview", isOn: $settings.previewEnabled)
                 Toggle("Auto-dismiss preview", isOn: $settings.previewTimeoutEnabled)
                     .disabled(!settings.previewEnabled)
-                if settings.previewTimeoutEnabled && settings.previewEnabled {
-                    LabeledContent("Preview timeout (seconds)") {
-                        TextField("", value: $settings.previewTimeoutSeconds, formatter: numberFormatter)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                    }
-                } else if settings.previewEnabled {
-                    Text("Preview stays until you close or trash it.")
-                        .foregroundStyle(.secondary)
+                if settings.previewEnabled {
+                    Text(settings.previewTimeoutEnabled
+                        ? "Auto-dismiss uses the save delay in Output."
+                        : "Preview stays until you close or trash it.")
+                    .foregroundStyle(.secondary)
                 }
             }
 
@@ -75,25 +68,24 @@ struct PreferencesView: View {
                 LabeledContent("Selection") {
                     TextField("", text: $settings.hotkeySelection)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 220)
                 }
                 LabeledContent("Full screen") {
                     TextField("", text: $settings.hotkeyFullScreen)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 220)
                 }
                 LabeledContent("Window") {
                     TextField("", text: $settings.hotkeyWindow)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 220)
                 }
                 Text("Use format like ctrl+p or ctrl+shift+p.")
+                    .foregroundStyle(.secondary)
+                Text("Some hotkey changes require quitting and reopening OpenShot.")
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .padding(20)
-        .frame(minWidth: 520, minHeight: 420)
+        .frame(minWidth: 560, minHeight: 480)
     }
 
     private func chooseFolder() {

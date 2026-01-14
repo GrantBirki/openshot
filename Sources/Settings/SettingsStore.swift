@@ -35,10 +35,6 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(previewEnabled, forKey: Keys.previewEnabled) }
     }
 
-    @Published var previewTimeoutSeconds: Double {
-        didSet { defaults.set(previewTimeoutSeconds, forKey: Keys.previewTimeoutSeconds) }
-    }
-
     @Published var saveLocationOption: SaveLocationOption {
         didSet { defaults.set(saveLocationOption.rawValue, forKey: Keys.saveLocationOption) }
     }
@@ -64,7 +60,7 @@ final class SettingsStore: ObservableObject {
     }
 
     var previewTimeout: TimeInterval? {
-        previewTimeoutEnabled ? previewTimeoutSeconds : nil
+        previewTimeoutEnabled ? saveDelaySeconds : nil
     }
 
     private let defaults: UserDefaults
@@ -73,9 +69,15 @@ final class SettingsStore: ObservableObject {
         self.defaults = defaults
 
         autoLaunchEnabled = defaults.object(forKey: Keys.autoLaunchEnabled) as? Bool ?? false
-        saveDelaySeconds = defaults.object(forKey: Keys.saveDelaySeconds) as? Double ?? 7
+        if let saveDelay = defaults.object(forKey: Keys.saveDelaySeconds) as? Double {
+            saveDelaySeconds = saveDelay
+        } else if let legacyDelay = defaults.object(forKey: LegacyKeys.previewTimeoutSeconds) as? Double {
+            saveDelaySeconds = legacyDelay
+            defaults.removeObject(forKey: LegacyKeys.previewTimeoutSeconds)
+        } else {
+            saveDelaySeconds = 7
+        }
         previewTimeoutEnabled = defaults.object(forKey: Keys.previewTimeoutEnabled) as? Bool ?? true
-        previewTimeoutSeconds = defaults.object(forKey: Keys.previewTimeoutSeconds) as? Double ?? 7
         previewEnabled = defaults.object(forKey: Keys.previewEnabled) as? Bool ?? true
 
         let locationRaw = defaults.string(forKey: Keys.saveLocationOption) ?? SaveLocationOption.downloads.rawValue
@@ -94,7 +96,6 @@ private enum Keys {
     static let autoLaunchEnabled = "settings.autoLaunchEnabled"
     static let saveDelaySeconds = "settings.saveDelaySeconds"
     static let previewTimeoutEnabled = "settings.previewTimeoutEnabled"
-    static let previewTimeoutSeconds = "settings.previewTimeoutSeconds"
     static let previewEnabled = "settings.previewEnabled"
     static let saveLocationOption = "settings.saveLocationOption"
     static let customSavePath = "settings.customSavePath"
@@ -102,4 +103,8 @@ private enum Keys {
     static let hotkeySelection = "settings.hotkeySelection"
     static let hotkeyFullScreen = "settings.hotkeyFullScreen"
     static let hotkeyWindow = "settings.hotkeyWindow"
+}
+
+private enum LegacyKeys {
+    static let previewTimeoutSeconds = "settings.previewTimeoutSeconds"
 }
