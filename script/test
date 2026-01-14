@@ -3,3 +3,23 @@
 set -euo pipefail
 
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
+
+require_macos error "Tests require macOS."
+require_tool xcodebuild "xcodebuild not found. Install Xcode or Command Line Tools."
+
+script/update
+
+PROJECT_PATH=$(find_project)
+set_xcodebuild_vars
+
+echo -e "${BLUE}Testing ${SCHEME} (${CONFIGURATION})...${OFF}"
+
+xcodebuild \
+  -project "$PROJECT_PATH" \
+  -scheme "$SCHEME" \
+  -configuration "$CONFIGURATION" \
+  -derivedDataPath "$DERIVED_DATA" \
+  -destination "platform=macOS" \
+  test \
+  CODE_SIGNING_ALLOWED=NO

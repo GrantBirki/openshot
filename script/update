@@ -3,3 +3,6 @@
 set -euo pipefail
 
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
+
+generate_xcodeproj

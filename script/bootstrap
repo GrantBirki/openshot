@@ -3,9 +3,38 @@
 set -euo pipefail
 
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
 
 echo -e "${BLUE}🥾 Bootstrapping...${OFF}"
 
-# TODO
+require_macos skip "Skipping bootstrap on non-macOS host."
+
+if ! xcode-select -p >/dev/null 2>&1; then
+  echo -e "${RED}Xcode Command Line Tools not found.${OFF}"
+  echo "Run: xcode-select --install"
+  exit 1
+fi
+
+require_tool brew "Homebrew not found. Install from https://brew.sh/"
+
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+
+deps=(
+  xcodegen
+  swiftlint
+  swiftformat
+)
+
+for dep in "${deps[@]}"; do
+  if brew list --formula "$dep" >/dev/null 2>&1; then
+    echo -e "${GREEN}OK${OFF} - $dep"
+  else
+    echo -e "${BLUE}Installing${OFF} - $dep"
+    brew install "$dep"
+  fi
+done
+
+generate_xcodeproj
 
 echo -e "${GREEN}✅ Bootstrap complete!${OFF}"

@@ -2,3 +2,21 @@
 
 set -euo pipefail
 source script/env "$@"
+source "$DIR/script/lib/common.sh"
+
+require_macos skip "Skipping lint on non-macOS host."
+require_tool swiftlint "swiftlint not found. Run script/bootstrap."
+require_tool swiftformat "swiftformat not found. Run script/bootstrap."
+
+if ! has_swift_files; then
+  echo -e "${YELLOW}No Swift files found; skipping lint.${OFF}"
+  exit 0
+fi
+
+echo -e "${BLUE}Running SwiftLint...${OFF}"
+swiftlint lint --quiet --path "$DIR"
+
+echo -e "${BLUE}Running SwiftFormat (lint)...${OFF}"
+swiftformat \
+  --lint "$DIR" \
+  --exclude ".build,build,DerivedData,.tmp,tmp"
