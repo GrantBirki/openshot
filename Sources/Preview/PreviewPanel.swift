@@ -2,14 +2,15 @@ import AppKit
 
 final class PreviewPanel: NSPanel {
     private let content: PreviewContentView
-    private let image: NSImage
-    private static let padding: CGFloat = 16
-    private static let desiredPixelSize = CGSize(width: 600, height: 500)
+    private enum Layout {
+        static let padding: CGFloat = 16
+        static let desiredPixelSize = CGSize(width: 600, height: 500)
+    }
 
     init(image: NSImage, onClose: @escaping () -> Void, onTrash: @escaping () -> Void) {
-        self.image = image
         let size = PreviewPanel.defaultSize()
         content = PreviewContentView(frame: NSRect(origin: .zero, size: size))
+        content.autoresizingMask = [.width, .height]
         super.init(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -37,29 +38,30 @@ final class PreviewPanel: NSPanel {
         }
 
         let safeFrame = PreviewPanel.safeFrame(for: screen)
+        let padding = Layout.padding
         let availableSize = NSSize(
-            width: max(safeFrame.width - PreviewPanel.padding * 2, 1),
-            height: max(safeFrame.height - PreviewPanel.padding * 2, 1)
+            width: max(safeFrame.width - padding * 2, 1),
+            height: max(safeFrame.height - padding * 2, 1)
         )
         let desiredSize = PreviewPanel.desiredSize(for: screen)
         let targetSize = NSSize(
             width: min(desiredSize.width, availableSize.width),
             height: min(desiredSize.height, availableSize.height)
         )
-        content.frame = NSRect(origin: .zero, size: targetSize)
-        content.autoresizingMask = [.width, .height]
+        let contentRect = NSRect(origin: .zero, size: targetSize)
+        content.frame = contentRect
         setContentSize(targetSize)
 
-        let frame = frameRect(forContentRect: NSRect(origin: .zero, size: targetSize))
+        let frame = frameRect(forContentRect: contentRect)
         var origin = CGPoint(
-            x: safeFrame.maxX - frame.width - PreviewPanel.padding,
-            y: safeFrame.minY + PreviewPanel.padding
+            x: safeFrame.maxX - frame.width - padding,
+            y: safeFrame.minY + padding
         )
 
-        let minX = safeFrame.minX + PreviewPanel.padding
-        let maxX = safeFrame.maxX - frame.width - PreviewPanel.padding
-        let minY = safeFrame.minY + PreviewPanel.padding
-        let maxY = safeFrame.maxY - frame.height - PreviewPanel.padding
+        let minX = safeFrame.minX + padding
+        let maxX = safeFrame.maxX - frame.width - padding
+        let minY = safeFrame.minY + padding
+        let maxY = safeFrame.maxY - frame.height - padding
 
         origin.x = maxX < minX ? minX : min(max(origin.x, minX), maxX)
         origin.y = maxY < minY ? minY : min(max(origin.y, minY), maxY)
@@ -72,11 +74,12 @@ final class PreviewPanel: NSPanel {
         let targetFrame = NSRect(origin: origin, size: frame.size)
         setFrame(targetFrame, display: false)
         orderFrontRegardless()
+        // AppKit can apply intrinsic sizing on first display; re-apply the fixed frame.
         setFrame(targetFrame, display: false)
     }
 
     private static func desiredSize(for screen: NSScreen) -> NSSize {
-        let rect = NSRect(origin: .zero, size: desiredPixelSize)
+        let rect = NSRect(origin: .zero, size: Layout.desiredPixelSize)
         return screen.convertRectFromBacking(rect).size
     }
 
@@ -85,8 +88,8 @@ final class PreviewPanel: NSPanel {
             return desiredSize(for: screen)
         }
         return NSSize(
-            width: desiredPixelSize.width,
-            height: desiredPixelSize.height
+            width: Layout.desiredPixelSize.width,
+            height: Layout.desiredPixelSize.height
         )
     }
 
@@ -134,13 +137,19 @@ private extension CGRect {
 }
 
 final class PreviewContentView: NSView {
+    private enum Layout {
+        static let contentInset: CGFloat = 10
+        static let buttonInset: CGFloat = 8
+        static let buttonSize: CGFloat = 18
+        static let cornerRadius: CGFloat = 12
+    }
+
     private let backgroundView = NSVisualEffectView()
     private let imageView = PreviewImageView()
     private let closeButton = NSButton()
     private let trashButton = NSButton()
     private var onClose: (() -> Void)?
     private var onTrash: (() -> Void)?
-    private let contentInset: CGFloat = 10
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -148,7 +157,7 @@ final class PreviewContentView: NSView {
         backgroundView.blendingMode = .withinWindow
         backgroundView.state = .active
         backgroundView.wantsLayer = true
-        backgroundView.layer?.cornerRadius = 12
+        backgroundView.layer?.cornerRadius = Layout.cornerRadius
         backgroundView.layer?.masksToBounds = true
         addSubview(backgroundView)
 
@@ -179,18 +188,19 @@ final class PreviewContentView: NSView {
     override func layout() {
         super.layout()
         backgroundView.frame = bounds
-        imageView.frame = bounds.insetBy(dx: contentInset, dy: contentInset)
+        imageView.frame = bounds.insetBy(dx: Layout.contentInset, dy: Layout.contentInset)
+        let buttonOriginY = bounds.height - Layout.buttonInset - Layout.buttonSize
         closeButton.frame = NSRect(
-            x: 8,
-            y: bounds.height - 8 - 18,
-            width: 18,
-            height: 18
+            x: Layout.buttonInset,
+            y: buttonOriginY,
+            width: Layout.buttonSize,
+            height: Layout.buttonSize
         )
         trashButton.frame = NSRect(
-            x: bounds.width - 8 - 18,
-            y: bounds.height - 8 - 18,
-            width: 18,
-            height: 18
+            x: bounds.width - Layout.buttonInset - Layout.buttonSize,
+            y: buttonOriginY,
+            width: Layout.buttonSize,
+            height: Layout.buttonSize
         )
     }
 
