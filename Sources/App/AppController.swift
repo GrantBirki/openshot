@@ -81,5 +81,11 @@ final class AppController {
         } else {
             NSLog("Window hotkey not set or invalid")
         }
+
+        menuBarController.updateHotkeys(
+            selection: settings.hotkeySelection,
+            fullScreen: settings.hotkeyFullScreen,
+            window: settings.hotkeyWindow
+        )
     }
 }

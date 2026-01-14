@@ -7,6 +7,9 @@ final class MenuBarController: NSObject {
     private let onCaptureWindow: () -> Void
     private let onPreferences: () -> Void
     private let onQuit: () -> Void
+    private let selectionItem: NSMenuItem
+    private let windowItem: NSMenuItem
+    private let fullScreenItem: NSMenuItem
 
     init(
         onCaptureSelection: @escaping () -> Void,
@@ -21,7 +24,14 @@ final class MenuBarController: NSObject {
         self.onPreferences = onPreferences
         self.onQuit = onQuit
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        selectionItem = NSMenuItem(title: "Capture Selection", action: #selector(captureSelection), keyEquivalent: "")
+        windowItem = NSMenuItem(title: "Capture Window", action: #selector(captureWindow), keyEquivalent: "")
+        fullScreenItem = NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: "")
         super.init()
+
+        selectionItem.target = self
+        windowItem.target = self
+        fullScreenItem.target = self
     }
 
     func start() {
@@ -42,28 +52,10 @@ final class MenuBarController: NSObject {
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
 
-        let selectionItem = NSMenuItem(
-            title: "Capture Selection",
-            action: #selector(captureSelection),
-            keyEquivalent: "s"
-        )
-        selectionItem.target = self
         menu.addItem(selectionItem)
 
-        let windowItem = NSMenuItem(
-            title: "Capture Window",
-            action: #selector(captureWindow),
-            keyEquivalent: "w"
-        )
-        windowItem.target = self
         menu.addItem(windowItem)
 
-        let fullScreenItem = NSMenuItem(
-            title: "Capture Full Screen",
-            action: #selector(captureFullScreen),
-            keyEquivalent: "f"
-        )
-        fullScreenItem.target = self
         menu.addItem(fullScreenItem)
 
         menu.addItem(.separator())
@@ -87,6 +79,55 @@ final class MenuBarController: NSObject {
         menu.addItem(quitItem)
 
         return menu
+    }
+
+    func updateHotkeys(selection: String, fullScreen: String, window: String) {
+        applyHotkey(selection, to: selectionItem)
+        applyHotkey(fullScreen, to: fullScreenItem)
+        applyHotkey(window, to: windowItem)
+    }
+
+    private func applyHotkey(_ value: String, to item: NSMenuItem) {
+        guard let shortcut = MenuBarController.menuShortcut(from: value) else {
+            item.keyEquivalent = ""
+            item.keyEquivalentModifierMask = []
+            return
+        }
+        item.keyEquivalent = shortcut.key
+        item.keyEquivalentModifierMask = shortcut.modifiers
+    }
+
+    private static func menuShortcut(from value: String) -> (key: String, modifiers: NSEvent.ModifierFlags)? {
+        let cleaned = value
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "")
+        if cleaned.isEmpty {
+            return nil
+        }
+
+        let parts = cleaned.split(separator: "+").map(String.init)
+        var modifiers: NSEvent.ModifierFlags = []
+        var key: String?
+
+        for part in parts {
+            switch part {
+            case "ctrl", "control":
+                modifiers.insert(.control)
+            case "shift":
+                modifiers.insert(.shift)
+            case "alt", "option":
+                modifiers.insert(.option)
+            case "cmd", "command":
+                modifiers.insert(.command)
+            default:
+                key = part
+            }
+        }
+
+        guard let key = key, KeyCodeMapper.keyCode(for: key) != nil else {
+            return nil
+        }
+        return (key: key, modifiers: modifiers)
     }
 
     @objc private func captureSelection() {
