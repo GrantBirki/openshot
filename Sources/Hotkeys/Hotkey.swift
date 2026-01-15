@@ -9,38 +9,26 @@ struct Hotkey: Equatable {
 
 enum HotkeyParser {
     static func parse(_ string: String) -> Hotkey? {
-        let cleaned = string
-            .lowercased()
-            .replacingOccurrences(of: " ", with: "")
-
-        if cleaned.isEmpty {
+        guard let parsed = HotkeyStringParser.parse(string),
+              let keyCode = KeyCodeMapper.keyCode(for: parsed.key) else {
             return nil
         }
 
-        let parts = cleaned.split(separator: "+").map(String.init)
         var modifiers: UInt32 = 0
-        var key: String?
-
-        for part in parts {
-            switch part {
-            case "ctrl", "control":
-                modifiers |= UInt32(controlKey)
-            case "shift":
-                modifiers |= UInt32(shiftKey)
-            case "alt", "option":
-                modifiers |= UInt32(optionKey)
-            case "cmd", "command":
-                modifiers |= UInt32(cmdKey)
-            default:
-                key = part
-            }
+        if parsed.modifiers.contains(.control) {
+            modifiers |= UInt32(controlKey)
+        }
+        if parsed.modifiers.contains(.shift) {
+            modifiers |= UInt32(shiftKey)
+        }
+        if parsed.modifiers.contains(.option) {
+            modifiers |= UInt32(optionKey)
+        }
+        if parsed.modifiers.contains(.command) {
+            modifiers |= UInt32(cmdKey)
         }
 
-        guard let key = key, let keyCode = KeyCodeMapper.keyCode(for: key) else {
-            return nil
-        }
-
-        return Hotkey(keyCode: keyCode, modifiers: modifiers, display: cleaned)
+        return Hotkey(keyCode: keyCode, modifiers: modifiers, display: parsed.normalized)
     }
 }
 

@@ -116,36 +116,25 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private static func menuShortcut(from value: String) -> (key: String, modifiers: NSEvent.ModifierFlags)? {
-        let cleaned = value
-            .lowercased()
-            .replacingOccurrences(of: " ", with: "")
-        if cleaned.isEmpty {
+        guard let parsed = HotkeyStringParser.parse(value) else {
             return nil
         }
 
-        let parts = cleaned.split(separator: "+").map(String.init)
         var modifiers: NSEvent.ModifierFlags = []
-        var key: String?
-
-        for part in parts {
-            switch part {
-            case "ctrl", "control":
-                modifiers.insert(.control)
-            case "shift":
-                modifiers.insert(.shift)
-            case "alt", "option":
-                modifiers.insert(.option)
-            case "cmd", "command":
-                modifiers.insert(.command)
-            default:
-                key = part
-            }
+        if parsed.modifiers.contains(.control) {
+            modifiers.insert(.control)
+        }
+        if parsed.modifiers.contains(.shift) {
+            modifiers.insert(.shift)
+        }
+        if parsed.modifiers.contains(.option) {
+            modifiers.insert(.option)
+        }
+        if parsed.modifiers.contains(.command) {
+            modifiers.insert(.command)
         }
 
-        guard let key = key, KeyCodeMapper.keyCode(for: key) != nil else {
-            return nil
-        }
-        return (key: key, modifiers: modifiers)
+        return (key: parsed.key, modifiers: modifiers)
     }
 
     @objc private func captureSelection() {
