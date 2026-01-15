@@ -3,10 +3,12 @@ import AppKit
 final class PreviewPanel: NSPanel {
     private let content: PreviewContentView
     private var keyMonitor: Any?
+
     private enum Layout {
         static let padding: CGFloat = 16
         static let desiredPixelSize = CGSize(width: 600, height: 500)
     }
+
     private enum KeyCodes {
         static let escape: UInt16 = 53
         static let delete: UInt16 = 51
@@ -18,6 +20,8 @@ final class PreviewPanel: NSPanel {
         filenamePrefix: String,
         onClose: @escaping () -> Void,
         onTrash: @escaping () -> Void,
+        onHoverChanged: @escaping (Bool) -> Void,
+        onDragChanged: @escaping (Bool) -> Void,
     ) {
         let size = PreviewPanel.defaultSize()
         content = PreviewContentView(frame: NSRect(origin: .zero, size: size))
@@ -43,6 +47,8 @@ final class PreviewPanel: NSPanel {
             filenamePrefix: filenamePrefix,
             onClose: onClose,
             onTrash: onTrash,
+            onHoverChanged: onHoverChanged,
+            onDragChanged: onDragChanged,
         )
         contentView = content
     }
@@ -105,13 +111,13 @@ final class PreviewPanel: NSPanel {
     private func startKeyMonitor() {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
-            guard let self, self.isVisible else { return event }
+            guard let self, isVisible else { return event }
             if event.keyCode == KeyCodes.escape {
-                self.content.performClose()
+                content.performClose()
                 return nil
             }
             if event.keyCode == KeyCodes.delete, event.modifierFlags.contains(.command) {
-                self.content.performTrash()
+                content.performTrash()
                 return nil
             }
             return event
@@ -119,9 +125,9 @@ final class PreviewPanel: NSPanel {
     }
 
     private func stopKeyMonitor() {
-        guard let keyMonitor else { return }
-        NSEvent.removeMonitor(keyMonitor)
-        self.keyMonitor = nil
+        guard let monitor = keyMonitor else { return }
+        NSEvent.removeMonitor(monitor)
+        keyMonitor = nil
     }
 
     deinit {
@@ -189,32 +195,37 @@ private extension CGRect {
 final class PreviewContentView: NSView {
     private enum Layout {
         static let cornerRadius: CGFloat = 12
-        static let buttonSize: CGFloat = 22
+        static let buttonSize: CGFloat = 28
+        static let cornerButtonInsetX: CGFloat = 0
+        static let cornerButtonInsetY: CGFloat = 0
         static let buttonOverlap: CGFloat = 4
-        static let buttonSymbolPointSize: CGFloat = 11
+        static let buttonSymbolPointSize: CGFloat = 12
         static let hoverFadeDuration: TimeInterval = 0.12
         static let hoverScale: CGFloat = 0.95
     }
 
-#if DEBUG
-    private enum Debug {
-        static let logHitTesting = true
-        static let logActions = true
-        static let logViewHierarchy = true
-        static var didLogViewHierarchy = false
-    }
-#endif
+    #if DEBUG
+        private enum Debug {
+            static let logHitTesting = true
+            static let logActions = true
+            static let logViewHierarchy = true
+            static var didLogViewHierarchy = false
+        }
+    #endif
 
     private static let tempFileCleanupDelay: TimeInterval = 60
     private static var closeBackgroundColor: NSColor {
         NSColor.controlBackgroundColor.withAlphaComponent(0.8)
     }
+
     private static var closeHoverBackgroundColor: NSColor {
         NSColor.controlBackgroundColor.withAlphaComponent(0.95)
     }
+
     private static var deleteBackgroundColor: NSColor {
         NSColor.systemRed.withAlphaComponent(0.8)
     }
+
     private static var deleteHoverBackgroundColor: NSColor {
         NSColor.systemRed.withAlphaComponent(1.0)
     }
@@ -228,7 +239,7 @@ final class PreviewContentView: NSView {
         tintColor: .labelColor,
         backgroundColor: PreviewContentView.closeBackgroundColor,
         hoverBackgroundColor: PreviewContentView.closeHoverBackgroundColor,
-        accessibilityLabel: "Dismiss preview",
+        accessibilityLabel: "Dismiss screenshot preview",
         identifier: "preview-close",
     )
     private let trashButton = PreviewActionButton(
@@ -242,9 +253,11 @@ final class PreviewContentView: NSView {
     )
     private var dragPayload: PreviewDragPayload?
     private var hoverTrackingArea: NSTrackingArea?
-    private var actionsVisible = false
+    private var isHovered = false
     private var onClose: (() -> Void)?
     private var onTrash: (() -> Void)?
+    private var onHoverChanged: ((Bool) -> Void)?
+    private var onDragChanged: ((Bool) -> Void)?
     private var isActionOverlayActive: Bool {
         !actionOverlayView.isHidden
     }
@@ -327,12 +340,12 @@ final class PreviewContentView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         super.mouseEntered(with: event)
-        setActionsVisible(true, animated: true)
+        setHoverState(true, animated: true)
     }
 
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
-        setActionsVisible(false, animated: true)
+        setHoverState(false, animated: true)
     }
 
     override func layout() {
@@ -342,15 +355,17 @@ final class PreviewContentView: NSView {
         imageView.frame = backgroundView.bounds
         actionOverlayView.frame = bounds
         let buttonSize = Layout.buttonSize
-        let buttonOriginY = bounds.height - buttonSize
+        let insetX = Layout.cornerButtonInsetX
+        let insetY = Layout.cornerButtonInsetY
+        let buttonOriginY = bounds.height - buttonSize - insetY
         closeButton.frame = NSRect(
-            x: 0,
+            x: insetX,
             y: buttonOriginY,
             width: buttonSize,
             height: buttonSize,
         )
         trashButton.frame = NSRect(
-            x: bounds.width - buttonSize,
+            x: bounds.width - buttonSize - insetX,
             y: buttonOriginY,
             width: buttonSize,
             height: buttonSize,
@@ -363,7 +378,14 @@ final class PreviewContentView: NSView {
         filenamePrefix: String,
         onClose: @escaping () -> Void,
         onTrash: @escaping () -> Void,
+        onHoverChanged: @escaping (Bool) -> Void,
+        onDragChanged: @escaping (Bool) -> Void,
     ) {
+        self.onClose = onClose
+        self.onTrash = onTrash
+        self.onHoverChanged = onHoverChanged
+        self.onDragChanged = onDragChanged
+
         imageView.image = image
         let payload = PreviewDragPayload(
             image: image,
@@ -373,27 +395,32 @@ final class PreviewContentView: NSView {
         dragPayload = payload
         imageView.dragPayload = payload
         imageView.onOpen = { [weak self] in
-#if DEBUG
-            if let self, Debug.logActions {
-                self.logDebug("Tile clicked -> open")
-            }
-#endif
+            #if DEBUG
+                if let self, Debug.logActions {
+                    logDebug("Tile clicked -> open")
+                }
+            #endif
             self?.openImage(image)
+        }
+        imageView.onDragStateChanged = { [weak self] dragging in
+            guard let self else { return }
+            self.onDragChanged?(dragging)
+            if !dragging {
+                updateHoverState(animated: false)
+            }
         }
         imageView.shouldIgnoreEvent = { [weak self] event in
             guard let self else { return false }
-            let point = self.convert(event.locationInWindow, from: nil)
-            return self.isPointInActionButtons(point)
+            let point = convert(event.locationInWindow, from: nil)
+            return isPointInActionButtons(point)
         }
-        self.onClose = onClose
-        self.onTrash = onTrash
     }
 
-#if DEBUG
-    func setActionsVisibleForTesting(_ visible: Bool) {
-        setActionsVisible(visible, animated: false)
-    }
-#endif
+    #if DEBUG
+        func setActionsVisibleForTesting(_ visible: Bool) {
+            setHoverState(visible, animated: false)
+        }
+    #endif
 
     func performClose() {
         handleClose()
@@ -426,20 +453,20 @@ final class PreviewContentView: NSView {
     }
 
     @objc private func handleClose() {
-#if DEBUG
-        if Debug.logActions {
-            logDebug("X clicked")
-        }
-#endif
+        #if DEBUG
+            if Debug.logActions {
+                logDebug("X clicked")
+            }
+        #endif
         onClose?()
     }
 
     @objc private func handleTrash() {
-#if DEBUG
-        if Debug.logActions {
-            logDebug("Trash clicked")
-        }
-#endif
+        #if DEBUG
+            if Debug.logActions {
+                logDebug("Trash clicked")
+            }
+        #endif
         onTrash?()
     }
 
@@ -450,84 +477,72 @@ final class PreviewContentView: NSView {
     }
 
     private func logHitTest(_ view: NSView?) {
-#if DEBUG
-        guard Debug.logHitTesting else { return }
-        let name = view.map { String(describing: type(of: $0)) } ?? "nil"
-        logDebug("hitTest -> \(name)")
-#endif
+        #if DEBUG
+            guard Debug.logHitTesting else { return }
+            let name = view.map { String(describing: type(of: $0)) } ?? "nil"
+            logDebug("hitTest -> \(name)")
+        #endif
     }
 
     private func logViewHierarchyIfNeeded() {
-#if DEBUG
-        guard Debug.logViewHierarchy, !Debug.didLogViewHierarchy else { return }
-        Debug.didLogViewHierarchy = true
-        let description = viewHierarchyDescription(for: self, indent: "")
-        logDebug("View hierarchy:\n\(description)")
-#endif
+        #if DEBUG
+            guard Debug.logViewHierarchy, !Debug.didLogViewHierarchy else { return }
+            Debug.didLogViewHierarchy = true
+            let description = viewHierarchyDescription(for: self, indent: "")
+            logDebug("View hierarchy:\n\(description)")
+        #endif
     }
 
     private func logDebug(_ message: String) {
-#if DEBUG
-        NSLog("PreviewTile: \(message)")
-#endif
+        #if DEBUG
+            NSLog("PreviewTile: \(message)")
+        #endif
     }
 
-#if DEBUG
-    private func viewHierarchyDescription(for view: NSView, indent: String) -> String {
-        var lines = ["\(indent)\(type(of: view)) frame=\(view.frame) hidden=\(view.isHidden)"]
-        for subview in view.subviews {
-            lines.append(viewHierarchyDescription(for: subview, indent: indent + "  "))
+    #if DEBUG
+        private func viewHierarchyDescription(for view: NSView, indent: String) -> String {
+            var lines = ["\(indent)\(type(of: view)) frame=\(view.frame) hidden=\(view.isHidden)"]
+            for subview in view.subviews {
+                lines.append(viewHierarchyDescription(for: subview, indent: indent + "  "))
+            }
+            return lines.joined(separator: "\n")
         }
-        return lines.joined(separator: "\n")
-    }
-#endif
+    #endif
 
     private func updateHoverState(animated: Bool) {
         guard let window else { return }
         let location = window.mouseLocationOutsideOfEventStream
         let local = convert(location, from: nil)
-        setActionsVisible(bounds.contains(local), animated: animated)
+        setHoverState(bounds.contains(local), animated: animated)
     }
 
-    private func setActionsVisible(_ visible: Bool, animated: Bool) {
-        guard actionsVisible != visible else { return }
-        actionsVisible = visible
+    private func setHoverState(_ hovered: Bool, animated: Bool) {
+        guard isHovered != hovered else { return }
+        isHovered = hovered
+        onHoverChanged?(hovered)
         let duration = animated ? Layout.hoverFadeDuration : 0
 
-        if visible {
+        if hovered {
             actionOverlayView.isHidden = false
             actionOverlayView.alphaValue = 0
-            applyScale(Layout.hoverScale, to: closeButton, duration: 0)
-            applyScale(Layout.hoverScale, to: trashButton, duration: 0)
+            closeButton.setBaseScale(Layout.hoverScale, duration: 0)
+            trashButton.setBaseScale(Layout.hoverScale, duration: 0)
         }
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = duration
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            actionOverlayView.animator().alphaValue = visible ? 1 : 0
+            actionOverlayView.animator().alphaValue = hovered ? 1 : 0
         } completionHandler: { [weak self] in
             guard let self else { return }
-            if !visible {
-                self.actionOverlayView.isHidden = true
+            if !hovered {
+                actionOverlayView.isHidden = true
             }
         }
 
-        let targetScale: CGFloat = visible ? 1 : Layout.hoverScale
-        applyScale(targetScale, to: closeButton, duration: duration)
-        applyScale(targetScale, to: trashButton, duration: duration)
-    }
-
-    private func applyScale(_ scale: CGFloat, to view: NSView, duration: TimeInterval) {
-        guard let layer = view.layer else { return }
-        CATransaction.begin()
-        if duration == 0 {
-            CATransaction.setDisableActions(true)
-        } else {
-            CATransaction.setAnimationDuration(duration)
-            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
-        }
-        layer.transform = CATransform3DMakeScale(scale, scale, 1)
-        CATransaction.commit()
+        let targetScale: CGFloat = hovered ? 1 : Layout.hoverScale
+        closeButton.setBaseScale(targetScale, duration: duration)
+        trashButton.setBaseScale(targetScale, duration: duration)
     }
 }
 
@@ -544,10 +559,21 @@ final class PreviewActionOverlayView: NSView {
 }
 
 final class PreviewActionButton: NSButton {
+    private enum Scale {
+        static let hover: CGFloat = 1.06
+        static let press: CGFloat = 0.95
+    }
+
+    private enum Animation {
+        static let hoverDuration: TimeInterval = 0.08
+        static let pressDuration: TimeInterval = 0.06
+    }
+
     private let normalBackgroundColor: NSColor
     private let hoverBackgroundColor: NSColor
     private var hoverTrackingArea: NSTrackingArea?
     private var isHovering = false
+    private var baseScale: CGFloat = 1
 
     init(
         symbolName: String,
@@ -573,7 +599,7 @@ final class PreviewActionButton: NSButton {
         contentTintColor = tintColor
         setAccessibilityLabel(accessibilityLabel)
         self.identifier = NSUserInterfaceItemIdentifier(identifier)
-        updateAppearance()
+        updateAppearance(duration: 0)
     }
 
     required init?(coder _: NSCoder) {
@@ -582,7 +608,7 @@ final class PreviewActionButton: NSButton {
 
     override var isHighlighted: Bool {
         didSet {
-            updateAppearance()
+            updateAppearance(duration: Animation.pressDuration)
         }
     }
 
@@ -604,13 +630,13 @@ final class PreviewActionButton: NSButton {
     override func mouseEntered(with event: NSEvent) {
         super.mouseEntered(with: event)
         isHovering = true
-        updateAppearance()
+        updateAppearance(duration: Animation.hoverDuration)
     }
 
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         isHovering = false
-        updateAppearance()
+        updateAppearance(duration: Animation.hoverDuration)
     }
 
     override func layout() {
@@ -618,9 +644,53 @@ final class PreviewActionButton: NSButton {
         layer?.cornerRadius = bounds.height / 2
     }
 
-    private func updateAppearance() {
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
+
+    func setBaseScale(_ scale: CGFloat, duration: TimeInterval) {
+        baseScale = scale
+        applyScale(duration: duration)
+    }
+
+    private func updateAppearance(duration: TimeInterval) {
         let background = (isHovering || isHighlighted) ? hoverBackgroundColor : normalBackgroundColor
         layer?.backgroundColor = background.cgColor
+        let targetAlpha: CGFloat = isHighlighted ? 0.85 : 1
+
+        if duration == 0 {
+            alphaValue = targetAlpha
+        } else {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = duration
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                animator().alphaValue = targetAlpha
+            }
+        }
+
+        applyScale(duration: duration)
+    }
+
+    private func applyScale(duration: TimeInterval) {
+        guard let layer else { return }
+        let scale: CGFloat = if isHighlighted {
+            baseScale * Scale.press
+        } else if isHovering {
+            baseScale * Scale.hover
+        } else {
+            baseScale
+        }
+
+        CATransaction.begin()
+        if duration == 0 {
+            CATransaction.setDisableActions(true)
+        } else {
+            CATransaction.setAnimationDuration(duration)
+            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+        }
+        layer.transform = CATransform3DMakeScale(scale, scale, 1)
+        CATransaction.commit()
     }
 }
 
@@ -628,6 +698,7 @@ final class PreviewImageView: NSImageView, NSDraggingSource {
     var onOpen: (() -> Void)?
     var dragPayload: PreviewDragPayload?
     var shouldIgnoreEvent: ((NSEvent) -> Bool)?
+    var onDragStateChanged: ((Bool) -> Void)?
     private var didDrag = false
     private var draggingSessionStarted = false
 
@@ -643,6 +714,7 @@ final class PreviewImageView: NSImageView, NSDraggingSource {
         guard let draggingItem = payload.makeDraggingItem(dragFrame: bounds) else { return }
         didDrag = true
         draggingSessionStarted = true
+        onDragStateChanged?(true)
 
         beginDraggingSession(with: [draggingItem], event: event, source: self)
     }
@@ -660,6 +732,7 @@ final class PreviewImageView: NSImageView, NSDraggingSource {
 
     func draggingSession(_: NSDraggingSession, endedAt _: NSPoint, operation _: NSDragOperation) {
         draggingSessionStarted = false
+        onDragStateChanged?(false)
         dragPayload?.rescheduleCleanup()
     }
 
