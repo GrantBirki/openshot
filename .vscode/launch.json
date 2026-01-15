@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:oneshot}",
+            "name": "Debug OneShot",
+            "target": "OneShot",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug OneShot"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:oneshot}",
+            "name": "Release OneShot",
+            "target": "OneShot",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release OneShot"
+        }
+    ]
+}
