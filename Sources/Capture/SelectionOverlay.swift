@@ -8,7 +8,7 @@ final class SelectionOverlayController {
         let excludeWindowID: CGWindowID?
     }
 
-    func beginSelection(completion: @escaping (SelectionResult?) -> Void) {
+    func beginSelection(onSwitchToWindow: (() -> Void)? = nil, completion: @escaping (SelectionResult?) -> Void) {
         guard let frame = ScreenFrameHelper.allScreensFrame() else {
             completion(nil)
             return
@@ -24,6 +24,10 @@ final class SelectionOverlayController {
         view.onCancel = { [weak self] in
             self?.end()
             completion(nil)
+        }
+        view.onSwitchToWindow = { [weak self] in
+            self?.end()
+            onSwitchToWindow?()
         }
         window.contentView = view
         window.makeKeyAndOrderFront(nil)
@@ -41,6 +45,7 @@ final class SelectionOverlayController {
 final class SelectionOverlayView: NSView {
     var onSelection: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
+    var onSwitchToWindow: (() -> Void)?
 
     private var dragStart: CGPoint?
     private var dragCurrent: CGPoint?
@@ -83,6 +88,8 @@ final class SelectionOverlayView: NSView {
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
             onCancel?()
+        } else if event.keyCode == 49 {
+            onSwitchToWindow?()
         }
     }
 

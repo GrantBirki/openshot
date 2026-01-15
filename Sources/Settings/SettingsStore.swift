@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 enum SaveLocationOption: String, CaseIterable, Identifiable {
@@ -64,6 +65,10 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(previewReplacementBehavior.rawValue, forKey: Keys.previewReplacementBehavior) }
     }
 
+    @Published var screenshotShortcutsEnabled: Bool {
+        didSet { defaults.set(screenshotShortcutsEnabled, forKey: Keys.screenshotShortcutsEnabled) }
+    }
+
     @Published var saveLocationOption: SaveLocationOption {
         didSet { defaults.set(saveLocationOption.rawValue, forKey: Keys.saveLocationOption) }
     }
@@ -84,8 +89,8 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(hotkeyFullScreen, forKey: Keys.hotkeyFullScreen) }
     }
 
-    @Published var hotkeyWindow: String {
-        didSet { defaults.set(hotkeyWindow, forKey: Keys.hotkeyWindow) }
+    @Published var hotkeyCaptureHUD: String {
+        didSet { defaults.set(hotkeyCaptureHUD, forKey: Keys.hotkeyCaptureHUD) }
     }
 
     var previewTimeout: TimeInterval? {
@@ -108,8 +113,10 @@ final class SettingsStore: ObservableObject {
         }
         previewTimeoutEnabled = defaults.object(forKey: Keys.previewTimeoutEnabled) as? Bool ?? true
         previewEnabled = defaults.object(forKey: Keys.previewEnabled) as? Bool ?? true
-        let replacementRaw = defaults.string(forKey: Keys.previewReplacementBehavior) ?? PreviewReplacementBehavior.saveImmediately.rawValue
+        let replacementDefault = PreviewReplacementBehavior.saveImmediately.rawValue
+        let replacementRaw = defaults.string(forKey: Keys.previewReplacementBehavior) ?? replacementDefault
         previewReplacementBehavior = PreviewReplacementBehavior(rawValue: replacementRaw) ?? .saveImmediately
+        screenshotShortcutsEnabled = defaults.object(forKey: Keys.screenshotShortcutsEnabled) as? Bool ?? true
 
         let locationRaw = defaults.string(forKey: Keys.saveLocationOption) ?? SaveLocationOption.downloads.rawValue
         saveLocationOption = SaveLocationOption(rawValue: locationRaw) ?? .downloads
@@ -117,9 +124,16 @@ final class SettingsStore: ObservableObject {
         customSavePath = defaults.string(forKey: Keys.customSavePath) ?? ""
         filenamePrefix = defaults.string(forKey: Keys.filenamePrefix) ?? "screenshot"
 
-        hotkeySelection = defaults.string(forKey: Keys.hotkeySelection) ?? "ctrl+p"
-        hotkeyFullScreen = defaults.string(forKey: Keys.hotkeyFullScreen) ?? "ctrl+shift+p"
-        hotkeyWindow = defaults.string(forKey: Keys.hotkeyWindow) ?? ""
+        hotkeySelection = defaults.string(forKey: Keys.hotkeySelection) ?? "cmd+shift+4"
+        hotkeyFullScreen = defaults.string(forKey: Keys.hotkeyFullScreen) ?? "cmd+shift+3"
+        if let captureHUD = defaults.string(forKey: Keys.hotkeyCaptureHUD) {
+            hotkeyCaptureHUD = captureHUD
+        } else if let legacyWindow = defaults.string(forKey: LegacyKeys.hotkeyWindow) {
+            hotkeyCaptureHUD = legacyWindow
+            defaults.removeObject(forKey: LegacyKeys.hotkeyWindow)
+        } else {
+            hotkeyCaptureHUD = "cmd+shift+5"
+        }
     }
 }
 
@@ -132,11 +146,13 @@ private enum Keys {
     static let saveLocationOption = "settings.saveLocationOption"
     static let customSavePath = "settings.customSavePath"
     static let filenamePrefix = "settings.filenamePrefix"
+    static let screenshotShortcutsEnabled = "settings.screenshotShortcutsEnabled"
     static let hotkeySelection = "settings.hotkeySelection"
     static let hotkeyFullScreen = "settings.hotkeyFullScreen"
-    static let hotkeyWindow = "settings.hotkeyWindow"
+    static let hotkeyCaptureHUD = "settings.hotkeyCaptureHUD"
 }
 
 private enum LegacyKeys {
     static let previewTimeoutSeconds = "settings.previewTimeoutSeconds"
+    static let hotkeyWindow = "settings.hotkeyWindow"
 }

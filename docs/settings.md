@@ -23,13 +23,16 @@ This document describes the settings available in OneShot.
 
 When previews are disabled, screenshots are saved immediately and the save delay is ignored.
 
-## Hotkeys
+## Screenshot Shortcuts
 
-- `Selection`: Hotkey for selection capture.
-- `Full screen`: Hotkey for full screen capture.
-- `Window`: Hotkey for window capture.
+- `Use OneShot screenshot shortcuts`: Register `Command+Shift+3/4/5` while OneShot is running.
+- `Full screen`: `Command+Shift+3`.
+- `Selection`: `Command+Shift+4` (press Space to switch to window capture).
+- `Capture toolbar`: `Command+Shift+5`.
 
-Notes:
+If macOS shortcuts are enabled, OneShot may not be able to register these keys.
 
-- Use formats like `ctrl+p` or `ctrl+shift+p`.
-- Some hotkey changes require quitting and reopening OneShot.
+## Enable Shortcuts
+
+- Open System Settings > Keyboard > Keyboard Shortcuts > Screenshots.
+- Disable the save/copy shortcuts for the screen and selected area.

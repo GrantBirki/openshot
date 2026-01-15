@@ -17,7 +17,7 @@ This document outlines the specifications for version 0 (v0) of the OneShot macO
   - The ability to fully disable the floating thumbnail preview and just default to instantly saving the screenshot or copying to clipboard.
   - Makes use of macOS native screenshot APIs where possible to ensure compatibility and reliability.
   - The ability to "click and drag" the resulting screenshot that hovers in the bottom right corner to drag and drop it into other applications.
-  - Support for keyboard shortcuts similar to macOS's built-in screenshot tool. Allow the user to customize these shortcuts so they can choose their own preferred key combinations. This is a global setting that applies system-wide for taking screenshots.
+  - Support for keyboard shortcuts that match macOS's built-in screenshot tool. Provide guidance to disable macOS shortcuts if they conflict.
   - It should be lightweight and have minimal impact on system resources.
   - It should have a clean and intuitive user interface that is easy to navigate.
   - It should be stable and reliable, with minimal bugs or crashes.
@@ -38,10 +38,10 @@ This document outlines the specifications for version 0 (v0) of the OneShot macO
 
 - Capture modes: drag-to-select area (default), full screen, window capture.
 - Default global hotkeys (no external deps):
-  - `ctrl+p` => drag selection capture. This is the default and golden path for capturing screenshots. At least for me personally!
-  - `ctrl+shift+p` => full screen capture. I don't use this as much but I'm sure others do so we need it as a feature.
-- Default hotkey for window capture: TBD.
-- Hotkeys should be user-configurable in settings.
+  - `cmd+shift+4` => drag selection capture (Space switches to window capture).
+  - `cmd+shift+3` => full screen capture.
+  - `cmd+shift+5` => show capture toolbar.
+- When macOS shortcuts are enabled, show guidance to disable them in System Settings.
 - No capture delay for v0 (always instant).
 - Use a custom selection overlay with CG APIs / ScreenCaptureKit for capture.
 

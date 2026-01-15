@@ -3,8 +3,8 @@ import Combine
 
 final class AppController {
     private let settings: SettingsStore
-    private let hotkeyManager: HotkeyManager
     private let captureManager: CaptureManager
+    private let shortcutManager: ShortcutManager
     private let menuBarController: MenuBarController
     private let settingsWindowController: SettingsWindowController
     private let launchAtLoginManager: LaunchAtLoginManager
@@ -12,22 +12,30 @@ final class AppController {
 
     init() {
         settings = SettingsStore()
-        hotkeyManager = HotkeyManager()
         captureManager = CaptureManager(settings: settings)
-        settingsWindowController = SettingsWindowController(settings: settings)
+        shortcutManager = ShortcutManager(
+            onCaptureFullScreen: { [weak captureManager] in captureManager?.captureFullScreen() },
+            onCaptureSelection: { [weak captureManager] in captureManager?.captureSelection() },
+            onShowCaptureHUD: { [weak captureManager] in captureManager?.showCaptureHUD() }
+        )
+        settingsWindowController = SettingsWindowController(settings: settings, shortcutManager: shortcutManager)
         launchAtLoginManager = LaunchAtLoginManager()
 
         menuBarController = MenuBarController(
             onCaptureSelection: { [weak captureManager] in captureManager?.captureSelection() },
             onCaptureFullScreen: { [weak captureManager] in captureManager?.captureFullScreen() },
             onCaptureWindow: { [weak captureManager] in captureManager?.captureWindow() },
+            onShowCaptureHUD: { [weak captureManager] in captureManager?.showCaptureHUD() },
             onSettings: { [weak settingsWindowController] in settingsWindowController?.show() },
             onQuit: { NSApp.terminate(nil) },
             hotkeyProvider: { [weak settings] in
-                (
-                    selection: settings?.hotkeySelection ?? "",
-                    fullScreen: settings?.hotkeyFullScreen ?? "",
-                    window: settings?.hotkeyWindow ?? ""
+                guard let settings = settings, settings.screenshotShortcutsEnabled else {
+                    return MenuBarHotkeys(selection: "", fullScreen: "", captureHUD: "")
+                }
+                return MenuBarHotkeys(
+                    selection: settings.hotkeySelection,
+                    fullScreen: settings.hotkeyFullScreen,
+                    captureHUD: settings.hotkeyCaptureHUD
                 )
             }
         )
@@ -36,7 +44,7 @@ final class AppController {
     func start() {
         NSLog("OneShot AppController start")
         menuBarController.start()
-        registerHotkeys()
+        applyShortcutSettings()
         observeSettings()
         launchAtLoginManager.setEnabled(settings.autoLaunchEnabled)
     }
@@ -48,47 +56,27 @@ final class AppController {
             }
             .store(in: &cancellables)
 
+        settings.$screenshotShortcutsEnabled
+            .sink { [weak self] _ in self?.applyShortcutSettings() }
+            .store(in: &cancellables)
         settings.$hotkeySelection
-            .sink { [weak self] _ in self?.registerHotkeys() }
+            .sink { [weak self] _ in self?.applyShortcutSettings() }
             .store(in: &cancellables)
         settings.$hotkeyFullScreen
-            .sink { [weak self] _ in self?.registerHotkeys() }
+            .sink { [weak self] _ in self?.applyShortcutSettings() }
             .store(in: &cancellables)
-        settings.$hotkeyWindow
-            .sink { [weak self] _ in self?.registerHotkeys() }
+        settings.$hotkeyCaptureHUD
+            .sink { [weak self] _ in self?.applyShortcutSettings() }
             .store(in: &cancellables)
     }
 
-    private func registerHotkeys() {
-        hotkeyManager.unregisterAll()
-
-        if let selectionHotkey = HotkeyParser.parse(settings.hotkeySelection) {
-            NSLog("Registering selection hotkey: \(selectionHotkey.display)")
-            hotkeyManager.register(hotkey: selectionHotkey) { [weak self] in
-                self?.captureManager.captureSelection()
-            }
-        } else {
-            NSLog("Selection hotkey not set or invalid")
-        }
-
-        if let fullScreenHotkey = HotkeyParser.parse(settings.hotkeyFullScreen) {
-            NSLog("Registering full screen hotkey: \(fullScreenHotkey.display)")
-            hotkeyManager.register(hotkey: fullScreenHotkey) { [weak self] in
-                self?.captureManager.captureFullScreen()
-            }
-        } else {
-            NSLog("Full screen hotkey not set or invalid")
-        }
-
-        if let windowHotkey = HotkeyParser.parse(settings.hotkeyWindow) {
-            NSLog("Registering window hotkey: \(windowHotkey.display)")
-            hotkeyManager.register(hotkey: windowHotkey) { [weak self] in
-                self?.captureManager.captureWindow()
-            }
-        } else {
-            NSLog("Window hotkey not set or invalid")
-        }
-
+    private func applyShortcutSettings() {
+        let bindings = ScreenshotShortcutBindings(
+            fullScreen: settings.hotkeyFullScreen,
+            selection: settings.hotkeySelection,
+            captureHUD: settings.hotkeyCaptureHUD
+        )
+        shortcutManager.apply(bindings: bindings, isEnabled: settings.screenshotShortcutsEnabled)
         menuBarController.refreshHotkeys()
     }
 }

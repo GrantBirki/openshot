@@ -6,6 +6,17 @@ final class CaptureManager {
     private let windowOverlay = WindowCaptureOverlayController()
     private let outputCoordinator: OutputCoordinator
     private let previewController = PreviewController()
+    private lazy var captureHUDController = CaptureHUDController(
+        onCaptureSelection: { [weak self] in
+            self?.captureSelection()
+        },
+        onCaptureWindow: { [weak self] in
+            self?.captureWindow()
+        },
+        onCaptureFullScreen: { [weak self] in
+            self?.captureFullScreen()
+        }
+    )
 
     init(settings: SettingsStore) {
         self.settings = settings
@@ -15,10 +26,15 @@ final class CaptureManager {
     func captureSelection() {
         guard ScreenCapturePermission.ensureAccess() else { return }
         NSApp.activate(ignoringOtherApps: true)
-        selectionOverlay.beginSelection { [weak self] selection in
-            guard let self = self, let selection = selection else { return }
-            self.capture(rect: selection.rect, excludingWindowID: selection.excludeWindowID)
-        }
+        selectionOverlay.beginSelection(
+            onSwitchToWindow: { [weak self] in
+                self?.captureWindow()
+            },
+            completion: { [weak self] selection in
+                guard let self = self, let selection = selection else { return }
+                self.capture(rect: selection.rect, excludingWindowID: selection.excludeWindowID)
+            }
+        )
     }
 
     func captureFullScreen() {
@@ -38,6 +54,11 @@ final class CaptureManager {
                 self.handleCapture(image, displaySize: windowInfo.bounds.size, anchorRect: windowInfo.bounds)
             }
         }
+    }
+
+    func showCaptureHUD() {
+        NSApp.activate(ignoringOtherApps: true)
+        captureHUDController.show()
     }
 
     private func capture(rect: CGRect, excludingWindowID: CGWindowID?) {

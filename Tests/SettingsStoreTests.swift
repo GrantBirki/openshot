@@ -24,10 +24,12 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(settings.previewTimeout, 7)
         XCTAssertTrue(settings.previewEnabled)
         XCTAssertEqual(settings.previewReplacementBehavior, .saveImmediately)
+        XCTAssertTrue(settings.screenshotShortcutsEnabled)
         XCTAssertEqual(settings.saveLocationOption, .downloads)
         XCTAssertEqual(settings.filenamePrefix, "screenshot")
-        XCTAssertEqual(settings.hotkeySelection, "ctrl+p")
-        XCTAssertEqual(settings.hotkeyFullScreen, "ctrl+shift+p")
+        XCTAssertEqual(settings.hotkeySelection, "cmd+shift+4")
+        XCTAssertEqual(settings.hotkeyFullScreen, "cmd+shift+3")
+        XCTAssertEqual(settings.hotkeyCaptureHUD, "cmd+shift+5")
     }
 
     func testValuesPersistToDefaults() {
@@ -37,12 +39,13 @@ final class SettingsStoreTests: XCTestCase {
         settings.previewTimeoutEnabled = false
         settings.previewEnabled = false
         settings.previewReplacementBehavior = .discard
+        settings.screenshotShortcutsEnabled = false
         settings.saveLocationOption = .desktop
         settings.customSavePath = "/tmp"
         settings.filenamePrefix = "grab"
         settings.hotkeySelection = "ctrl+z"
         settings.hotkeyFullScreen = "ctrl+shift+z"
-        settings.hotkeyWindow = "ctrl+w"
+        settings.hotkeyCaptureHUD = "ctrl+shift+5"
 
         settings = SettingsStore(defaults: defaults)
         XCTAssertTrue(settings.autoLaunchEnabled)
@@ -51,12 +54,13 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertNil(settings.previewTimeout)
         XCTAssertFalse(settings.previewEnabled)
         XCTAssertEqual(settings.previewReplacementBehavior, .discard)
+        XCTAssertFalse(settings.screenshotShortcutsEnabled)
         XCTAssertEqual(settings.saveLocationOption, .desktop)
         XCTAssertEqual(settings.customSavePath, "/tmp")
         XCTAssertEqual(settings.filenamePrefix, "grab")
         XCTAssertEqual(settings.hotkeySelection, "ctrl+z")
         XCTAssertEqual(settings.hotkeyFullScreen, "ctrl+shift+z")
-        XCTAssertEqual(settings.hotkeyWindow, "ctrl+w")
+        XCTAssertEqual(settings.hotkeyCaptureHUD, "ctrl+shift+5")
     }
 
     func testPreviewTimeoutUsesSaveDelay() {

@@ -1,41 +1,69 @@
 import Cocoa
 
+struct MenuBarHotkeys {
+    let selection: String
+    let fullScreen: String
+    let captureHUD: String
+}
+
 final class MenuBarController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let onCaptureSelection: () -> Void
     private let onCaptureFullScreen: () -> Void
     private let onCaptureWindow: () -> Void
+    private let onShowCaptureHUD: () -> Void
     private let onSettings: () -> Void
     private let onQuit: () -> Void
-    private let hotkeyProvider: () -> (selection: String, fullScreen: String, window: String)
+    private let hotkeyProvider: () -> MenuBarHotkeys
     private var menu: NSMenu?
     private let selectionItem: NSMenuItem
     private let windowItem: NSMenuItem
     private let fullScreenItem: NSMenuItem
+    private let captureHUDItem: NSMenuItem
 
     init(
         onCaptureSelection: @escaping () -> Void,
         onCaptureFullScreen: @escaping () -> Void,
         onCaptureWindow: @escaping () -> Void,
+        onShowCaptureHUD: @escaping () -> Void,
         onSettings: @escaping () -> Void,
         onQuit: @escaping () -> Void,
-        hotkeyProvider: @escaping () -> (selection: String, fullScreen: String, window: String)
+        hotkeyProvider: @escaping () -> MenuBarHotkeys
     ) {
         self.onCaptureSelection = onCaptureSelection
         self.onCaptureFullScreen = onCaptureFullScreen
         self.onCaptureWindow = onCaptureWindow
+        self.onShowCaptureHUD = onShowCaptureHUD
         self.onSettings = onSettings
         self.onQuit = onQuit
         self.hotkeyProvider = hotkeyProvider
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        selectionItem = NSMenuItem(title: "Capture Selection", action: #selector(captureSelection), keyEquivalent: "")
-        windowItem = NSMenuItem(title: "Capture Window", action: #selector(captureWindow), keyEquivalent: "")
-        fullScreenItem = NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: "")
+        selectionItem = NSMenuItem(
+            title: "Capture Selection",
+            action: #selector(captureSelection),
+            keyEquivalent: ""
+        )
+        windowItem = NSMenuItem(
+            title: "Capture Window",
+            action: #selector(captureWindow),
+            keyEquivalent: ""
+        )
+        fullScreenItem = NSMenuItem(
+            title: "Capture Full Screen",
+            action: #selector(captureFullScreen),
+            keyEquivalent: ""
+        )
+        captureHUDItem = NSMenuItem(
+            title: "Capture Toolbar",
+            action: #selector(showCaptureHUD),
+            keyEquivalent: ""
+        )
         super.init()
 
         selectionItem.target = self
         windowItem.target = self
         fullScreenItem.target = self
+        captureHUDItem.target = self
     }
 
     func start() {
@@ -66,6 +94,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(fullScreenItem)
 
+        menu.addItem(captureHUDItem)
+
         menu.addItem(.separator())
 
         let settingsItem = NSMenuItem(
@@ -91,17 +121,21 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     func refreshHotkeys() {
         let values = hotkeyProvider()
-        updateHotkeys(selection: values.selection, fullScreen: values.fullScreen, window: values.window)
+        updateHotkeys(
+            selection: values.selection,
+            fullScreen: values.fullScreen,
+            captureHUD: values.captureHUD
+        )
     }
 
     func menuNeedsUpdate(_: NSMenu) {
         refreshHotkeys()
     }
 
-    private func updateHotkeys(selection: String, fullScreen: String, window: String) {
+    private func updateHotkeys(selection: String, fullScreen: String, captureHUD: String) {
         applyHotkey(selection, to: selectionItem)
         applyHotkey(fullScreen, to: fullScreenItem)
-        applyHotkey(window, to: windowItem)
+        applyHotkey(captureHUD, to: captureHUDItem)
         menu?.update()
     }
 
@@ -155,5 +189,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func quit() {
         onQuit()
+    }
+
+    @objc private func showCaptureHUD() {
+        onShowCaptureHUD()
     }
 }

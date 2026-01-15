@@ -1,6 +1,12 @@
 import Carbon.HIToolbox
 import Foundation
 
+protocol HotkeyRegistering {
+    @discardableResult
+    func register(hotkey: Hotkey, handler: @escaping () -> Void) -> OSStatus
+    func unregisterAll()
+}
+
 final class HotkeyManager {
     private var hotKeyRefs: [UInt32: EventHotKeyRef] = [:]
     private var handlers: [UInt32: () -> Void] = [:]
@@ -11,7 +17,8 @@ final class HotkeyManager {
         installHandlerIfNeeded()
     }
 
-    func register(hotkey: Hotkey, handler: @escaping () -> Void) {
+    @discardableResult
+    func register(hotkey: Hotkey, handler: @escaping () -> Void) -> OSStatus {
         let id = nextID
         nextID += 1
 
@@ -28,12 +35,13 @@ final class HotkeyManager {
 
         guard status == noErr, let ref = hotKeyRef else {
             NSLog("Hotkey registration failed (\(status)) for \(hotkey.display)")
-            return
+            return status
         }
 
         hotKeyRefs[id] = ref
         handlers[id] = handler
         NSLog("Hotkey registered: \(hotkey.display)")
+        return status
     }
 
     func unregisterAll() {
@@ -94,3 +102,5 @@ final class HotkeyManager {
         return noErr
     }
 }
+
+extension HotkeyManager: HotkeyRegistering {}

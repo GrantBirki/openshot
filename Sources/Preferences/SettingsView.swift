@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var shortcutManager: ShortcutManager
 
     private let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -44,7 +45,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-
             }
 
             Section("Preview") {
@@ -66,25 +66,46 @@ struct SettingsView: View {
                     }
                 }
                 .disabled(!settings.previewEnabled)
-                .help("Choose what happens to the current preview when a new screenshot is taken and the old preview is still visible.")
+                .help(
+                    "Choose what happens to the current preview when a new screenshot is taken " +
+                        "and the old preview is still visible."
+                )
             }
 
-            Section("Hotkeys") {
-                LabeledContent("Selection") {
-                    TextField("", text: $settings.hotkeySelection)
-                        .textFieldStyle(.roundedBorder)
+            Section("Screenshot Shortcuts") {
+                Toggle("Use OneShot screenshot shortcuts", isOn: $settings.screenshotShortcutsEnabled)
+                    .help("Registers Command+Shift+3/4/5 while OneShot is running.")
+
+                ForEach(shortcutManager.statuses) { status in
+                    LabeledContent(status.title) {
+                        HStack(spacing: 8) {
+                            Text(status.binding)
+                                .font(.system(.body, design: .monospaced))
+                            Text(status.label)
+                                .foregroundStyle(statusColor(for: status.style))
+                        }
+                    }
                 }
-                LabeledContent("Full screen") {
-                    TextField("", text: $settings.hotkeyFullScreen)
-                        .textFieldStyle(.roundedBorder)
+
+                if settings.screenshotShortcutsEnabled, shortcutManager.hasConflicts {
+                    Text("Some shortcuts are already in use by macOS.")
+                        .foregroundStyle(.secondary)
                 }
-                LabeledContent("Window") {
-                    TextField("", text: $settings.hotkeyWindow)
-                        .textFieldStyle(.roundedBorder)
-                }
-                Text("Use format like ctrl+p or ctrl+shift+p.")
+            }
+
+            Section("Enable Shortcuts") {
+                // If macOS still owns these keys, we fall back to user instructions instead of event taps.
+                Text("Disable macOS screenshot shortcuts to let OneShot handle Command+Shift+3/4/5.")
+                Text("System Settings > Keyboard > Keyboard Shortcuts > Screenshots")
                     .foregroundStyle(.secondary)
-                Text("Some hotkey changes require quitting and reopening OneShot.")
+                Text("Turn off the save/copy shortcuts for the screen and selected area.")
+                    .foregroundStyle(.secondary)
+                Button("Open Keyboard Shortcuts") {
+                    openKeyboardShortcuts()
+                }
+                Text("Screen Recording permission is required for capture.")
+                    .foregroundStyle(.secondary)
+                Text("Accessibility or Input Monitoring is only needed if macOS prompts for it.")
                     .foregroundStyle(.secondary)
             }
         }
@@ -103,6 +124,28 @@ struct SettingsView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             settings.customSavePath = url.path
+        }
+    }
+
+    private func openKeyboardShortcuts() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard?Shortcuts") {
+            if NSWorkspace.shared.open(url) {
+                return
+            }
+        }
+        if let fallback = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard") {
+            _ = NSWorkspace.shared.open(fallback)
+        }
+    }
+
+    private func statusColor(for style: ShortcutStatusStyle) -> Color {
+        switch style {
+        case .active:
+            return .green
+        case .inactive:
+            return .secondary
+        case .warning:
+            return .orange
         }
     }
 }
