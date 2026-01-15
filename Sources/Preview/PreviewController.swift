@@ -3,6 +3,7 @@ import AppKit
 final class PreviewController {
     private var panel: PreviewPanel?
     private var hideWorkItem: DispatchWorkItem?
+    private var replaceAction: (() -> Void)?
 
     func show(
         image: NSImage,
@@ -11,9 +12,11 @@ final class PreviewController {
         timeout: TimeInterval?,
         onClose: @escaping () -> Void,
         onTrash: @escaping () -> Void,
+        onReplace: @escaping () -> Void,
         onAutoDismiss: (() -> Void)? = nil,
         anchorRect: CGRect? = nil
     ) {
+        dismissForReplacement()
         hideWorkItem?.cancel()
 
         let panel = PreviewPanel(
@@ -31,6 +34,10 @@ final class PreviewController {
         )
         panel.show(on: PreviewPanel.screen(for: anchorRect))
         self.panel = panel
+        replaceAction = { [weak self] in
+            onReplace()
+            self?.hide()
+        }
 
         if let timeout = timeout, timeout > 0 {
             let workItem = DispatchWorkItem { [weak self] in
@@ -47,5 +54,11 @@ final class PreviewController {
         hideWorkItem = nil
         panel?.close()
         panel = nil
+        replaceAction = nil
+    }
+
+    private func dismissForReplacement() {
+        guard panel != nil else { return }
+        replaceAction?()
     }
 }

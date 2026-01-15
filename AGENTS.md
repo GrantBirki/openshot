@@ -43,3 +43,7 @@ brew install --cask grantbirki/tap/oneshot
 7. When writing unit tests, always strive for 100% code coverage where it makes sense. Try to consider edge cases as well.
 8. Always strive to keep the codebase clean and maintainable. Avoid unnecessary complexity and always consider the long-term maintainability of the code.
 9. Always strive for the highest level of code coverage with unit tests where possible.
+
+## Documentation
+
+Anytime you are making a change to a setting/preference or making a change to a feature that is strongly linked to a setting, make sure to update the `docs/settings.md` file to reflect the changes made. This is crucial for keeping the documentation accurate and up-to-date for users.
