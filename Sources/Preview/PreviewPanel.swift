@@ -3,6 +3,7 @@ import AppKit
 final class PreviewPanel: NSPanel {
     private let content: PreviewContentView
     private var keyMonitor: Any?
+    private var globalKeyMonitor: Any?
 
     private enum Layout {
         static let padding: CGFloat = 16
@@ -109,29 +110,52 @@ final class PreviewPanel: NSPanel {
     }
 
     private func startKeyMonitor() {
-        guard keyMonitor == nil else { return }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
-            guard let self, isVisible else { return event }
-            if event.keyCode == KeyCodes.escape {
-                content.performClose()
-                return nil
+        if keyMonitor == nil {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard let self else { return event }
+                if handleKeyEvent(event) {
+                    return nil
+                }
+                return event
             }
-            if event.keyCode == KeyCodes.delete, event.modifierFlags.contains(.command) {
-                content.performTrash()
-                return nil
+        }
+
+        if globalKeyMonitor == nil {
+            globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+                guard let self else { return }
+                guard !NSApp.isActive else { return }
+                _ = handleKeyEvent(event)
             }
-            return event
         }
     }
 
     private func stopKeyMonitor() {
-        guard let monitor = keyMonitor else { return }
-        NSEvent.removeMonitor(monitor)
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
         keyMonitor = nil
+
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        globalKeyMonitor = nil
     }
 
     deinit {
         stopKeyMonitor()
+    }
+
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        guard isVisible else { return false }
+        if event.keyCode == KeyCodes.escape {
+            content.performClose()
+            return true
+        }
+        if event.keyCode == KeyCodes.delete, event.modifierFlags.contains(.command) {
+            content.performTrash()
+            return true
+        }
+        return false
     }
 
     private static func desiredSize(for screen: NSScreen) -> NSSize {
