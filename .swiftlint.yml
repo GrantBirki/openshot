@@ -1,0 +1,10 @@
+disabled_rules:
+  - trailing_comma
+  - opening_brace
+
+excluded:
+  - .build
+  - build
+  - DerivedData
+  - .tmp
+  - tmp
