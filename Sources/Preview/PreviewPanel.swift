@@ -143,6 +143,7 @@ final class PreviewContentView: NSView {
         static let buttonSize: CGFloat = 18
         static let cornerRadius: CGFloat = 12
     }
+    private static let tempFileCleanupDelay: TimeInterval = 60
 
     private let backgroundView = NSVisualEffectView()
     private let imageView = PreviewImageView()
@@ -218,9 +219,20 @@ final class PreviewContentView: NSView {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
         do {
             _ = try FileSaveService.save(image: image, to: tempURL.deletingLastPathComponent(), filename: filename)
-            NSWorkspace.shared.open(tempURL)
+            let opened = NSWorkspace.shared.open(tempURL)
+            if !opened {
+                NSLog("Failed to open preview image at \(tempURL.path)")
+            }
+            scheduleTempCleanup(for: tempURL)
         } catch {
             NSLog("Failed to open preview image: \(error)")
+        }
+    }
+
+    private func scheduleTempCleanup(for url: URL) {
+        let delay = PreviewContentView.tempFileCleanupDelay
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay) {
+            try? FileManager.default.removeItem(at: url)
         }
     }
 

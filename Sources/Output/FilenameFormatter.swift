@@ -16,7 +16,21 @@ enum FilenameFormatter {
         let minutes = (absOffset % 3600) / 60
         let tz = String(format: "%02d_%02d", hours, minutes)
 
-        let sanitizedPrefix = prefix.isEmpty ? "screenshot" : prefix
+        let sanitizedPrefix = sanitizePrefix(prefix)
         return "\(sanitizedPrefix)_\(timestamp)_\(sign)_\(tz).png"
+    }
+
+    private static func sanitizePrefix(_ prefix: String) -> String {
+        let trimmed = prefix.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "screenshot"
+        }
+
+        let withoutTraversal = trimmed.replacingOccurrences(of: "..", with: "")
+        let forbidden = CharacterSet(charactersIn: "/:\\")
+        let filteredScalars = withoutTraversal.unicodeScalars.filter { !forbidden.contains($0) }
+        let sanitized = String(String.UnicodeScalarView(filteredScalars))
+
+        return sanitized.isEmpty ? "screenshot" : sanitized
     }
 }
