@@ -37,4 +37,6 @@ done
 
 generate_xcodeproj
 
+swift build
+
 echo -e "${GREEN}✅ Bootstrap complete!${OFF}"
