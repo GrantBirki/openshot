@@ -99,7 +99,7 @@ struct SettingsView: View {
                 )
                 Text("Click a field and press the shortcut. Press Esc to cancel.")
                     .foregroundStyle(.secondary)
-                Text("Some hotkey changes require quitting and reopening OneShot.")
+                Text("Many hotkey changes require quitting and reopening OneShot for changes to take effect.")
                     .foregroundStyle(.secondary)
             }
         }
