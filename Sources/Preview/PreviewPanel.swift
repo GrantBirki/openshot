@@ -42,6 +42,10 @@ final class PreviewPanel: NSPanel {
         contentView = content
     }
 
+    override var canBecomeKey: Bool {
+        true
+    }
+
     func show(on screen: NSScreen?) {
         guard let screen = screen ?? PreviewPanel.targetScreen() else {
             center()
@@ -85,9 +89,10 @@ final class PreviewPanel: NSPanel {
 
         let targetFrame = NSRect(origin: origin, size: frame.size)
         setFrame(targetFrame, display: false)
-        orderFrontRegardless()
+        makeKeyAndOrderFront(nil)
         // AppKit can apply intrinsic sizing on first display; re-apply the fixed frame.
         setFrame(targetFrame, display: false)
+        makeFirstResponder(content)
     }
 
     private static func desiredSize(for screen: NSScreen) -> NSSize {
@@ -150,20 +155,40 @@ private extension CGRect {
 
 final class PreviewContentView: NSView {
     private enum Layout {
-        static let actionBarHeight: CGFloat = 28
-        static let actionFontSize: CGFloat = 12
         static let cornerRadius: CGFloat = 12
+        static let buttonSize: CGFloat = 22
+        static let buttonInset: CGFloat = 8
+        static let hoverScale: CGFloat = 0.95
+        static let hoverAnimationDuration: TimeInterval = 0.12
     }
 
     private static let tempFileCleanupDelay: TimeInterval = 60
 
     private let backgroundView = NSVisualEffectView()
-    private let imageView = PreviewImageView()
-    private let closeButton = NSButton()
-    private let trashButton = NSButton()
+    private let imageView = NSImageView()
+    private let closeButton = PreviewActionButton(
+        symbolName: "xmark",
+        baseColor: NSColor.systemGray.withAlphaComponent(0.35),
+        hoverColor: NSColor.systemGray.withAlphaComponent(0.55),
+        tintColor: .labelColor,
+        accessibilityLabel: "Dismiss preview",
+        identifier: "preview-close"
+    )
+    private let trashButton = PreviewActionButton(
+        symbolName: "trash",
+        baseColor: NSColor.systemRed.withAlphaComponent(0.75),
+        hoverColor: .systemRed,
+        tintColor: .white,
+        accessibilityLabel: "Delete screenshot",
+        identifier: "preview-trash"
+    )
     private var dragPayload: PreviewDragPayload?
     private var onClose: (() -> Void)?
     private var onTrash: (() -> Void)?
+    private var trackingArea: NSTrackingArea?
+    private var hoverHideWorkItem: DispatchWorkItem?
+    private var didDrag = false
+    private var draggingSessionStarted = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -178,29 +203,15 @@ final class PreviewContentView: NSView {
         imageView.imageScaling = .scaleProportionallyUpOrDown
         backgroundView.addSubview(imageView)
 
-        configureActionButton(
-            closeButton,
-            title: "X",
-            textColor: .labelColor,
-            backgroundColor: .windowBackgroundColor,
-            accessibilityLabel: "Dismiss preview",
-            identifier: "preview-close"
-        )
         closeButton.target = self
         closeButton.action = #selector(handleClose)
-        backgroundView.addSubview(closeButton)
+        addSubview(closeButton)
 
-        configureActionButton(
-            trashButton,
-            title: "Del",
-            textColor: .white,
-            backgroundColor: .systemRed,
-            accessibilityLabel: "Delete screenshot",
-            identifier: "preview-trash"
-        )
         trashButton.target = self
         trashButton.action = #selector(handleTrash)
-        backgroundView.addSubview(trashButton)
+        addSubview(trashButton)
+
+        setButtonsVisible(false, animated: false)
     }
 
     required init?(coder _: NSCoder) {
@@ -210,27 +221,21 @@ final class PreviewContentView: NSView {
     override func layout() {
         super.layout()
         backgroundView.frame = bounds
-        let actionBarHeight = Layout.actionBarHeight
-        let imageHeight = max(bounds.height - actionBarHeight, 0)
-        imageView.frame = NSRect(
-            x: 0,
-            y: 0,
-            width: bounds.width,
-            height: imageHeight
-        )
-        let buttonOriginY = imageHeight
-        let buttonWidth = bounds.width / 2
+        imageView.frame = backgroundView.bounds
+        let buttonSize = Layout.buttonSize
+        let buttonInset = Layout.buttonInset
+        let buttonOriginY = bounds.height - buttonSize - buttonInset
         closeButton.frame = NSRect(
-            x: 0,
+            x: buttonInset,
             y: buttonOriginY,
-            width: buttonWidth,
-            height: actionBarHeight
+            width: buttonSize,
+            height: buttonSize
         )
         trashButton.frame = NSRect(
-            x: buttonWidth,
+            x: bounds.width - buttonSize - buttonInset,
             y: buttonOriginY,
-            width: bounds.width - buttonWidth,
-            height: actionBarHeight
+            width: buttonSize,
+            height: buttonSize
         )
     }
 
@@ -248,12 +253,91 @@ final class PreviewContentView: NSView {
             filenamePrefix: filenamePrefix
         )
         dragPayload = payload
-        imageView.dragPayload = payload
-        imageView.onOpen = { [weak self] in
-            self?.openImage(image)
-        }
         self.onClose = onClose
         self.onTrash = onTrash
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+        let area = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with _: NSEvent) {
+        setButtonsVisible(true, animated: true)
+    }
+
+    override func mouseExited(with _: NSEvent) {
+        setButtonsVisible(false, animated: true)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if !closeButton.isHidden, closeButton.frame.contains(point) {
+            return closeButton
+        }
+        if !trashButton.isHidden, trashButton.frame.contains(point) {
+            return trashButton
+        }
+        return self
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if isActionButtonEvent(event) {
+            return
+        }
+        didDrag = false
+        draggingSessionStarted = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard !isActionButtonEvent(event) else { return }
+        guard !draggingSessionStarted, let payload = dragPayload else { return }
+        guard let draggingItem = payload.makeDraggingItem(dragFrame: bounds) else { return }
+        didDrag = true
+        draggingSessionStarted = true
+
+        beginDraggingSession(with: [draggingItem], event: event, source: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if isActionButtonEvent(event) {
+            return
+        }
+        if !didDrag, let image = imageView.image {
+            openImage(image)
+        }
+    }
+
+    override var acceptsFirstResponder: Bool {
+        true
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            onClose?()
+            return
+        }
+        if event.modifierFlags.contains(.command), event.keyCode == 51 {
+            onTrash?()
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    private func isActionButtonEvent(_ event: NSEvent) -> Bool {
+        let point = convert(event.locationInWindow, from: nil)
+        if !closeButton.isHidden, closeButton.frame.contains(point) {
+            return true
+        }
+        if !trashButton.isHidden, trashButton.frame.contains(point) {
+            return true
+        }
+        return false
     }
 
     private func openImage(_ image: NSImage) {
@@ -285,63 +369,48 @@ final class PreviewContentView: NSView {
     @objc private func handleTrash() {
         onTrash?()
     }
+    private func setButtonsVisible(_ visible: Bool, animated: Bool) {
+        hoverHideWorkItem?.cancel()
+        let targetAlpha: CGFloat = visible ? 1 : 0
+        let targetScale: CGFloat = visible ? 1 : Layout.hoverScale
+        if visible {
+            closeButton.isHidden = false
+            trashButton.isHidden = false
+        }
 
-    private func configureActionButton(
-        _ button: NSButton,
-        title: String,
-        textColor: NSColor,
-        backgroundColor: NSColor,
-        accessibilityLabel: String,
-        identifier: String
-    ) {
-        button.bezelStyle = .inline
-        button.isBordered = false
-        button.wantsLayer = true
-        button.layer?.backgroundColor = backgroundColor.cgColor
-        button.layer?.masksToBounds = true
-        button.attributedTitle = actionTitle(title, textColor: textColor)
-        button.setAccessibilityLabel(accessibilityLabel)
-        button.identifier = NSUserInterfaceItemIdentifier(identifier)
-    }
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Layout.hoverAnimationDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                closeButton.animator().alphaValue = targetAlpha
+                trashButton.animator().alphaValue = targetAlpha
+            }
+            CATransaction.begin()
+            CATransaction.setAnimationDuration(Layout.hoverAnimationDuration)
+            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+            closeButton.layer?.transform = CATransform3DMakeScale(targetScale, targetScale, 1)
+            trashButton.layer?.transform = CATransform3DMakeScale(targetScale, targetScale, 1)
+            CATransaction.commit()
+        } else {
+            closeButton.alphaValue = targetAlpha
+            trashButton.alphaValue = targetAlpha
+            closeButton.layer?.transform = CATransform3DMakeScale(targetScale, targetScale, 1)
+            trashButton.layer?.transform = CATransform3DMakeScale(targetScale, targetScale, 1)
+        }
 
-    private func actionTitle(_ title: String, textColor: NSColor) -> NSAttributedString {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: Layout.actionFontSize, weight: .semibold),
-            .foregroundColor: textColor,
-            .paragraphStyle: paragraphStyle,
-        ]
-        return NSAttributedString(string: title, attributes: attributes)
+        if !visible {
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.closeButton.isHidden = true
+                self.trashButton.isHidden = true
+            }
+            hoverHideWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + Layout.hoverAnimationDuration, execute: workItem)
+        }
     }
 }
 
-final class PreviewImageView: NSImageView, NSDraggingSource {
-    var onOpen: (() -> Void)?
-    var dragPayload: PreviewDragPayload?
-    private var didDrag = false
-    private var draggingSessionStarted = false
-
-    override func mouseDown(with _: NSEvent) {
-        didDrag = false
-        draggingSessionStarted = false
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard !draggingSessionStarted, let payload = dragPayload else { return }
-        guard let draggingItem = payload.makeDraggingItem(dragFrame: bounds) else { return }
-        didDrag = true
-        draggingSessionStarted = true
-
-        beginDraggingSession(with: [draggingItem], event: event, source: self)
-    }
-
-    override func mouseUp(with _: NSEvent) {
-        if !didDrag {
-            onOpen?()
-        }
-    }
-
+extension PreviewContentView: NSDraggingSource {
     func draggingSession(_: NSDraggingSession, sourceOperationMaskFor _: NSDraggingContext) -> NSDragOperation {
         return .copy
     }
@@ -349,5 +418,65 @@ final class PreviewImageView: NSImageView, NSDraggingSource {
     func draggingSession(_: NSDraggingSession, endedAt _: NSPoint, operation _: NSDragOperation) {
         draggingSessionStarted = false
         dragPayload?.rescheduleCleanup()
+    }
+}
+
+final class PreviewActionButton: NSButton {
+    private let baseColor: NSColor
+    private let hoverColor: NSColor
+    private var trackingArea: NSTrackingArea?
+
+    init(
+        symbolName: String,
+        baseColor: NSColor,
+        hoverColor: NSColor,
+        tintColor: NSColor,
+        accessibilityLabel: String,
+        identifier: String
+    ) {
+        self.baseColor = baseColor
+        self.hoverColor = hoverColor
+        super.init(frame: .zero)
+        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: accessibilityLabel)
+        image?.isTemplate = true
+        self.image = image
+        self.title = ""
+        self.contentTintColor = tintColor
+        imagePosition = .imageOnly
+        bezelStyle = .shadowlessSquare
+        isBordered = false
+        focusRingType = .none
+        wantsLayer = true
+        layer?.backgroundColor = baseColor.cgColor
+        layer?.masksToBounds = true
+        setAccessibilityLabel(accessibilityLabel)
+        self.identifier = NSUserInterfaceItemIdentifier(identifier)
+    }
+
+    required init?(coder: NSCoder) {
+        return nil
+    }
+
+    override func layout() {
+        super.layout()
+        layer?.cornerRadius = bounds.width / 2
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with _: NSEvent) {
+        layer?.backgroundColor = hoverColor.cgColor
+    }
+
+    override func mouseExited(with _: NSEvent) {
+        layer?.backgroundColor = baseColor.cgColor
     }
 }
