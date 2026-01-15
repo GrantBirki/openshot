@@ -49,14 +49,16 @@ final class CaptureManager {
     private func handleCapture(_ image: CGImage, displaySize: NSSize, anchorRect: CGRect?) {
         do {
             let captured = try CapturedImage(cgImage: image, displaySize: displaySize)
-            let saveID = outputCoordinator.begin(pngData: captured.pngData)
+            let previewTimeout = settings.previewTimeout
+            let shouldAutoDismiss = previewTimeout.map { $0 > 0 } ?? false
+            let saveID = outputCoordinator.begin(pngData: captured.pngData, scheduleSave: !shouldAutoDismiss)
             if settings.previewEnabled {
                 let replacementBehavior = settings.previewReplacementBehavior
                 let request = PreviewRequest(
                     image: captured.previewImage,
                     pngData: captured.pngData,
                     filenamePrefix: settings.filenamePrefix,
-                    timeout: settings.previewTimeout,
+                    timeout: previewTimeout,
                     onClose: { [weak self] in
                         self?.outputCoordinator.finalize(id: saveID)
                     },
@@ -73,7 +75,8 @@ final class CaptureManager {
                         }
                     },
                     onAutoDismiss: { [weak self] in
-                        self?.outputCoordinator.markAutoDismissed(id: saveID)
+                        // Auto-dismiss commits the save and closes the preview together.
+                        self?.outputCoordinator.finalize(id: saveID)
                     },
                     anchorRect: anchorRect,
                 )

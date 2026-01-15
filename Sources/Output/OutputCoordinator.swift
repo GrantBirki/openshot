@@ -24,7 +24,7 @@ final class OutputCoordinator {
         self.onSave = onSave
     }
 
-    func begin(pngData: Data) -> UUID {
+    func begin(pngData: Data, scheduleSave: Bool = true) -> UUID {
         clipboardCopy(pngData)
 
         let id = UUID()
@@ -40,7 +40,9 @@ final class OutputCoordinator {
                 savedURL: nil,
                 releaseAfterSave: false,
             )
-            queue.asyncAfter(deadline: .now() + delay, execute: workItem)
+            if scheduleSave {
+                queue.asyncAfter(deadline: .now() + delay, execute: workItem)
+            }
         }
         if DispatchQueue.getSpecific(key: queueKey) != nil {
             schedule()

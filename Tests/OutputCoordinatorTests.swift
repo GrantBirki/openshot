@@ -122,6 +122,37 @@ final class OutputCoordinatorTests: XCTestCase {
         XCTAssertEqual(clipboardData, pngData)
     }
 
+    func testBeginWithoutSchedulingDefersSaveUntilFinalize() {
+        let settings = SettingsStore(defaults: defaults)
+        settings.saveLocationOption = .custom
+        settings.customSavePath = tempDirectory.path
+        settings.saveDelaySeconds = 0
+
+        let queue = DispatchQueue(label: "OutputCoordinatorTests.queue")
+        let noSaveExpectation = expectation(description: "No save before finalize")
+        noSaveExpectation.isInverted = true
+        let saveExpectation = expectation(description: "Saved after finalize")
+        var didFinalize = false
+
+        let coordinator = OutputCoordinator(
+            settings: settings,
+            queue: queue,
+            clipboardCopy: { _ in },
+            onSave: { _, _ in
+                if !didFinalize {
+                    noSaveExpectation.fulfill()
+                }
+                saveExpectation.fulfill()
+            },
+        )
+
+        let id = coordinator.begin(pngData: Self.makePNGData(), scheduleSave: false)
+        wait(for: [noSaveExpectation], timeout: 0.2)
+        didFinalize = true
+        coordinator.finalize(id: id)
+        wait(for: [saveExpectation], timeout: 2)
+    }
+
     private static func makePNGData() -> Data {
         let size = NSSize(width: 2, height: 2)
         let rep = NSBitmapImageRep(

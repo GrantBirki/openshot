@@ -15,8 +15,8 @@ This document describes the settings available in OneShot.
 ## Preview
 
 - `Show floating preview`: Show the thumbnail preview after capture.
-- `Auto-dismiss preview`: Automatically dismiss the preview after the save delay.
-- `Save delay (seconds)`: Time to wait before saving a screenshot when previews are enabled.
+- `Auto-dismiss preview`: Automatically dismiss the preview after the save delay. Hovering or dragging pauses the dismissal and the save until interaction ends.
+- `Save delay (seconds)`: Time to wait before saving a screenshot when previews are enabled. With auto-dismiss enabled, the save and dismiss happen together after the delay.
 - `On new screenshot`: Behavior when another capture happens while a preview is still visible.
   - `Save previous capture`: Saves the existing capture immediately and replaces the preview.
   - `Discard previous capture`: Cancels the existing capture and replaces the preview.
