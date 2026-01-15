@@ -44,7 +44,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-
             }
 
             Section("Preview") {
@@ -66,7 +65,10 @@ struct SettingsView: View {
                     }
                 }
                 .disabled(!settings.previewEnabled)
-                .help("Choose what happens to the current preview when a new screenshot is taken and the old preview is still visible.")
+                .help(
+                    "Choose what happens to the current preview when a new screenshot is taken " +
+                        "and the old preview is still visible."
+                )
             }
 
             Section("Hotkeys") {

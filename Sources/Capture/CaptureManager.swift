@@ -52,7 +52,7 @@ final class CaptureManager {
             let saveID = outputCoordinator.begin(pngData: captured.pngData)
             if settings.previewEnabled {
                 let replacementBehavior = settings.previewReplacementBehavior
-                previewController.show(
+                let request = PreviewRequest(
                     image: captured.previewImage,
                     pngData: captured.pngData,
                     filenamePrefix: settings.filenamePrefix,
@@ -77,6 +77,7 @@ final class CaptureManager {
                     },
                     anchorRect: anchorRect
                 )
+                previewController.show(request)
             } else {
                 outputCoordinator.finalize(id: saveID)
             }

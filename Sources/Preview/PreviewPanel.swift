@@ -155,6 +155,14 @@ final class PreviewContentView: NSView {
         static let cornerRadius: CGFloat = 12
     }
 
+    private struct ActionButtonConfiguration {
+        let title: String
+        let textColor: NSColor
+        let backgroundColor: NSColor
+        let accessibilityLabel: String
+        let identifier: String
+    }
+
     private static let tempFileCleanupDelay: TimeInterval = 60
 
     private let backgroundView = NSVisualEffectView()
@@ -180,11 +188,13 @@ final class PreviewContentView: NSView {
 
         configureActionButton(
             closeButton,
-            title: "X",
-            textColor: .labelColor,
-            backgroundColor: .windowBackgroundColor,
-            accessibilityLabel: "Dismiss preview",
-            identifier: "preview-close"
+            configuration: ActionButtonConfiguration(
+                title: "X",
+                textColor: .labelColor,
+                backgroundColor: .windowBackgroundColor,
+                accessibilityLabel: "Dismiss preview",
+                identifier: "preview-close"
+            )
         )
         closeButton.target = self
         closeButton.action = #selector(handleClose)
@@ -192,11 +202,13 @@ final class PreviewContentView: NSView {
 
         configureActionButton(
             trashButton,
-            title: "Del",
-            textColor: .white,
-            backgroundColor: .systemRed,
-            accessibilityLabel: "Delete screenshot",
-            identifier: "preview-trash"
+            configuration: ActionButtonConfiguration(
+                title: "Del",
+                textColor: .white,
+                backgroundColor: .systemRed,
+                accessibilityLabel: "Delete screenshot",
+                identifier: "preview-trash"
+            )
         )
         trashButton.target = self
         trashButton.action = #selector(handleTrash)
@@ -286,22 +298,15 @@ final class PreviewContentView: NSView {
         onTrash?()
     }
 
-    private func configureActionButton(
-        _ button: NSButton,
-        title: String,
-        textColor: NSColor,
-        backgroundColor: NSColor,
-        accessibilityLabel: String,
-        identifier: String
-    ) {
+    private func configureActionButton(_ button: NSButton, configuration: ActionButtonConfiguration) {
         button.bezelStyle = .inline
         button.isBordered = false
         button.wantsLayer = true
-        button.layer?.backgroundColor = backgroundColor.cgColor
+        button.layer?.backgroundColor = configuration.backgroundColor.cgColor
         button.layer?.masksToBounds = true
-        button.attributedTitle = actionTitle(title, textColor: textColor)
-        button.setAccessibilityLabel(accessibilityLabel)
-        button.identifier = NSUserInterfaceItemIdentifier(identifier)
+        button.attributedTitle = actionTitle(configuration.title, textColor: configuration.textColor)
+        button.setAccessibilityLabel(configuration.accessibilityLabel)
+        button.identifier = NSUserInterfaceItemIdentifier(configuration.identifier)
     }
 
     private func actionTitle(_ title: String, textColor: NSColor) -> NSAttributedString {
@@ -310,7 +315,7 @@ final class PreviewContentView: NSView {
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: Layout.actionFontSize, weight: .semibold),
             .foregroundColor: textColor,
-            .paragraphStyle: paragraphStyle,
+            .paragraphStyle: paragraphStyle
         ]
         return NSAttributedString(string: title, attributes: attributes)
     }

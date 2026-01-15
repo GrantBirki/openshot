@@ -108,7 +108,8 @@ final class SettingsStore: ObservableObject {
         }
         previewTimeoutEnabled = defaults.object(forKey: Keys.previewTimeoutEnabled) as? Bool ?? true
         previewEnabled = defaults.object(forKey: Keys.previewEnabled) as? Bool ?? true
-        let replacementRaw = defaults.string(forKey: Keys.previewReplacementBehavior) ?? PreviewReplacementBehavior.saveImmediately.rawValue
+        let replacementRaw = defaults.string(forKey: Keys.previewReplacementBehavior)
+            ?? PreviewReplacementBehavior.saveImmediately.rawValue
         previewReplacementBehavior = PreviewReplacementBehavior(rawValue: replacementRaw) ?? .saveImmediately
 
         let locationRaw = defaults.string(forKey: Keys.saveLocationOption) ?? SaveLocationOption.downloads.rawValue
