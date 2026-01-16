@@ -96,9 +96,9 @@ enum PNGDataEncoder {
     private static func hasAlpha(for cgImage: CGImage) -> Bool {
         switch cgImage.alphaInfo {
         case .none, .noneSkipFirst, .noneSkipLast:
-            return false
+            false
         default:
-            return true
+            true
         }
     }
 
