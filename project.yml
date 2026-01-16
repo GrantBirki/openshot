@@ -17,7 +17,7 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleDisplayName: OneShot
+        CFBundleDisplayName: $(APP_DISPLAY_NAME)
         CFBundleIconName: AppIcon
         GIT_SHA: $(GIT_SHA)
         LSUIElement: true
@@ -25,10 +25,15 @@ targets:
         NSScreenCaptureUsageDescription: OneShot needs screen recording access to capture screenshots.
     settings:
       base:
+        APP_DISPLAY_NAME: OneShot
         PRODUCT_BUNDLE_IDENTIFIER: com.grantbirki.oneshot
         MARKETING_VERSION: 0.0.0
         CURRENT_PROJECT_VERSION: 0.0.0
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          APP_DISPLAY_NAME: OneShot Dev
+          PRODUCT_BUNDLE_IDENTIFIER: com.grantbirki.oneshot.dev
   OneShotTests:
     type: bundle.unit-test
     platform: macOS
