@@ -11,6 +11,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let onCaptureSelection: () -> Void
     private let onCaptureFullScreen: () -> Void
     private let onCaptureWindow: () -> Void
+    private let onAbout: () -> Void
     private let onSettings: () -> Void
     private let onQuit: () -> Void
     private let hotkeyProvider: () -> HotkeyBindings
@@ -18,11 +19,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let selectionItem: NSMenuItem
     private let windowItem: NSMenuItem
     private let fullScreenItem: NSMenuItem
+    private let aboutItem: NSMenuItem
 
     init(
         onCaptureSelection: @escaping () -> Void,
         onCaptureFullScreen: @escaping () -> Void,
         onCaptureWindow: @escaping () -> Void,
+        onAbout: @escaping () -> Void,
         onSettings: @escaping () -> Void,
         onQuit: @escaping () -> Void,
         hotkeyProvider: @escaping () -> HotkeyBindings,
@@ -30,6 +33,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.onCaptureSelection = onCaptureSelection
         self.onCaptureFullScreen = onCaptureFullScreen
         self.onCaptureWindow = onCaptureWindow
+        self.onAbout = onAbout
         self.onSettings = onSettings
         self.onQuit = onQuit
         self.hotkeyProvider = hotkeyProvider
@@ -49,11 +53,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             action: #selector(captureFullScreen),
             keyEquivalent: "",
         )
+        aboutItem = NSMenuItem(
+            title: "About OneShot",
+            action: #selector(openAbout),
+            keyEquivalent: "",
+        )
         super.init()
 
         selectionItem.target = self
         windowItem.target = self
         fullScreenItem.target = self
+        aboutItem.target = self
     }
 
     func start() {
@@ -93,6 +103,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         )
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
@@ -152,6 +164,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         onSettings()
+    }
+
+    @objc private func openAbout() {
+        onAbout()
     }
 
     @objc private func quit() {
