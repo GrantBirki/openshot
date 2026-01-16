@@ -2,6 +2,8 @@ import AppKit
 
 final class SelectionOverlayController {
     private var windows: [OverlayWindow] = []
+    private var views: [SelectionOverlayView] = []
+    private var selectionState: SelectionOverlayState?
 
     struct SelectionResult {
         let rect: CGRect
@@ -23,11 +25,18 @@ final class SelectionOverlayController {
             end()
             completion(result)
         }
+        let state = SelectionOverlayState()
+        selectionState = state
+        let refreshViews: () -> Void = { [weak self] in
+            guard let self else { return }
+            views.forEach { $0.needsDisplay = true }
+        }
 
         for screen in screens {
             let window = OverlayWindow(contentRect: screen.frame)
-            let view = SelectionOverlayView(frame: window.contentView?.bounds ?? .zero)
+            let view = SelectionOverlayView(frame: window.contentView?.bounds ?? .zero, state: state)
             var windowID: CGWindowID = 0
+            view.onSelectionChanged = refreshViews
             view.onSelection = { rect in
                 finish(SelectionResult(rect: rect, excludeWindowID: windowID))
             }
@@ -39,6 +48,7 @@ final class SelectionOverlayController {
             window.makeFirstResponder(view)
             windowID = CGWindowID(window.windowNumber)
             windows.append(window)
+            views.append(view)
         }
     }
 
@@ -47,43 +57,73 @@ final class SelectionOverlayController {
             window.orderOut(nil)
         }
         windows.removeAll()
+        views.removeAll()
+        selectionState = nil
+    }
+}
+
+final class SelectionOverlayState {
+    var start: CGPoint?
+    var current: CGPoint?
+
+    var rect: CGRect? {
+        guard let start, let current else { return nil }
+        return CGRect(
+            x: min(start.x, current.x),
+            y: min(start.y, current.y),
+            width: abs(start.x - current.x),
+            height: abs(start.y - current.y),
+        )
     }
 }
 
 final class SelectionOverlayView: NSView {
     var onSelection: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
+    var onSelectionChanged: (() -> Void)?
+    private let state: SelectionOverlayState
 
-    private var dragStart: CGPoint?
-    private var dragCurrent: CGPoint?
+    init(frame frameRect: NSRect, state: SelectionOverlayState) {
+        self.state = state
+        super.init(frame: frameRect)
+    }
+
+    required init?(coder _: NSCoder) {
+        nil
+    }
 
     override var acceptsFirstResponder: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
-        dragStart = convert(event.locationInWindow, from: nil)
-        dragCurrent = dragStart
-        needsDisplay = true
+        guard let window else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        let screenPoint = window.convertPoint(toScreen: point)
+        state.start = screenPoint
+        state.current = screenPoint
+        onSelectionChanged?()
     }
 
     override func mouseDragged(with event: NSEvent) {
-        dragCurrent = convert(event.locationInWindow, from: nil)
-        needsDisplay = true
+        guard let window else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        let screenPoint = window.convertPoint(toScreen: point)
+        state.current = screenPoint
+        onSelectionChanged?()
     }
 
-    override func mouseUp(with _: NSEvent) {
-        guard let start = dragStart, let end = dragCurrent, let window else {
+    override func mouseUp(with event: NSEvent) {
+        guard let window else {
             onCancel?()
             return
         }
 
-        let startScreen = window.convertPoint(toScreen: start)
-        let endScreen = window.convertPoint(toScreen: end)
-        let rect = CGRect(
-            x: min(startScreen.x, endScreen.x),
-            y: min(startScreen.y, endScreen.y),
-            width: abs(startScreen.x - endScreen.x),
-            height: abs(startScreen.y - endScreen.y),
-        )
+        let point = convert(event.locationInWindow, from: nil)
+        state.current = window.convertPoint(toScreen: point)
+        onSelectionChanged?()
+        guard let rect = state.rect else {
+            onCancel?()
+            return
+        }
 
         if rect.width < 2 || rect.height < 2 {
             onCancel?()
@@ -120,13 +160,8 @@ final class SelectionOverlayView: NSView {
     }
 
     private func selectionRect() -> CGRect? {
-        guard let start = dragStart, let current = dragCurrent else { return nil }
-        return CGRect(
-            x: min(start.x, current.x),
-            y: min(start.y, current.y),
-            width: abs(start.x - current.x),
-            height: abs(start.y - current.y),
-        )
+        guard let rect = state.rect, let window else { return nil }
+        return window.convertFromScreen(rect)
     }
 }
 
