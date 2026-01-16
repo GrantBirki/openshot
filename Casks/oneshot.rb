@@ -5,7 +5,7 @@ raise "VERSION file missing or invalid" unless version_value
 
 cask "oneshot" do
   version version_value
-  sha256 "b13f40d019d80d320f2e58f07adc616f9a5dedfc9ff0bef3fd7f6fbfdfb8b3c8"
+  sha256 "aec5d3b0a9e7f01592647c42dc3bcbd1b9fe22dffc6fb8eebfc82bafeadfb7e5"
 
   url "https://github.com/grantbirki/oneshot/releases/download/v#{version}/OneShot.zip"
   name "OneShot"

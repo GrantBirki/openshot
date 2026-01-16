@@ -8,6 +8,8 @@
 	<string>OneShot</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -17,9 +19,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>1</string>
 	<key>GIT_SHA</key>
 	<string>$(GIT_SHA)</string>
 	<key>LSUIElement</key>
