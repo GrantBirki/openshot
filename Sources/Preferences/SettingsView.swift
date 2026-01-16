@@ -102,6 +102,10 @@ struct SettingsView: View {
                 Text("Many hotkey changes require quitting and reopening OneShot for changes to take effect.")
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                AboutInfoView()
+            }
         }
         .formStyle(.grouped)
         .background(FocusClearView())

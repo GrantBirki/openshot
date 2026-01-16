@@ -15,6 +15,7 @@ targets:
       path: Info.plist
       properties:
         CFBundleDisplayName: OneShot
+        GIT_SHA: $(GIT_SHA)
         LSUIElement: true
         NSHighResolutionCapable: true
         NSScreenCaptureUsageDescription: OneShot needs screen recording access to capture screenshots.

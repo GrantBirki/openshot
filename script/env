@@ -17,3 +17,15 @@ export DIR
 # The name of the repository is the name of the directory (usually)
 REPO_NAME=$(basename "$PWD")
 export REPO_NAME
+
+if [[ -z "${GIT_SHA:-}" ]]; then
+  if command -v git >/dev/null 2>&1 && [[ -d "$DIR/.git" ]]; then
+    GIT_SHA=$(git -C "$DIR" rev-parse --short=8 HEAD 2>/dev/null || true)
+  fi
+fi
+
+if [[ -z "${GIT_SHA:-}" ]]; then
+  GIT_SHA="unknown"
+fi
+
+export GIT_SHA
