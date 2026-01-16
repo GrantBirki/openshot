@@ -5,3 +5,11 @@
 [![lint](https://github.com/GrantBirki/oneshot/actions/workflows/lint.yml/badge.svg)](https://github.com/GrantBirki/oneshot/actions/workflows/lint.yml)
 
 Open source screenshot utility for MacOS with QoL improvements over the native Apple screenshot utility.
+
+## Installation
+
+Homebrew (recommended):
+
+```bash
+brew install --cask grantbirki/tap/oneshot
+```

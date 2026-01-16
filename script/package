@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+source script/env "$@"
+source "$DIR/script/lib/common.sh"
+
+require_macos error "Packaging requires macOS."
+require_tool xcodebuild "xcodebuild not found. Install Xcode or Command Line Tools."
+require_tool ditto "ditto not found."
+
+CONFIGURATION="${CONFIGURATION:-Release}"
+
+script/update
+set_xcodebuild_vars
+
+PROJECT_PATH=$(find_project)
+
+DIST_DIR="${DIST_DIR:-$DIR/dist}"
+STAGING_APP="$DIST_DIR/${APP_NAME}.app"
+ZIP_PATH="$DIST_DIR/${APP_NAME}.zip"
+NOTARY_ZIP="$DIST_DIR/${APP_NAME}-notary.zip"
+
+CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-}"
+ENTITLEMENTS_PATH="${ENTITLEMENTS_PATH:-}"
+
+if [[ -z "$ENTITLEMENTS_PATH" && -f "$DIR/${APP_NAME}.entitlements" ]]; then
+  ENTITLEMENTS_PATH="$DIR/${APP_NAME}.entitlements"
+fi
+
+rm -rf "$DIST_DIR"
+mkdir -p "$DIST_DIR"
+
+echo -e "${BLUE}Packaging ${APP_NAME} (${CONFIGURATION})...${OFF}"
+
+xcodebuild \
+  -project "$PROJECT_PATH" \
+  -scheme "$SCHEME" \
+  -configuration "$CONFIGURATION" \
+  -derivedDataPath "$DERIVED_DATA" \
+  build \
+  CODE_SIGNING_ALLOWED=NO
+
+APP_PATH="$DERIVED_DATA/Build/Products/${CONFIGURATION}/${APP_NAME}.app"
+if [[ ! -d "$APP_PATH" ]]; then
+  echo -e "${RED}App not found at $APP_PATH${OFF}"
+  exit 1
+fi
+
+rm -rf "$STAGING_APP"
+ditto "$APP_PATH" "$STAGING_APP"
+
+if [[ -n "$NOTARY_PROFILE" && -z "$CODESIGN_IDENTITY" ]]; then
+  echo -e "${RED}NOTARY_PROFILE is set, but CODESIGN_IDENTITY is empty.${OFF}"
+  exit 1
+fi
+
+if [[ -n "$CODESIGN_IDENTITY" ]]; then
+  require_tool codesign "codesign not found."
+  codesign_args=(--force --options runtime --timestamp --sign "$CODESIGN_IDENTITY")
+  if [[ -n "$ENTITLEMENTS_PATH" ]]; then
+    if [[ ! -f "$ENTITLEMENTS_PATH" ]]; then
+      echo -e "${RED}Entitlements file not found at $ENTITLEMENTS_PATH${OFF}"
+      exit 1
+    fi
+    codesign_args+=(--entitlements "$ENTITLEMENTS_PATH")
+  fi
+  codesign "${codesign_args[@]}" "$STAGING_APP"
+  codesign --verify --strict "$STAGING_APP"
+fi
+
+if [[ -n "$NOTARY_PROFILE" ]]; then
+  require_tool xcrun "xcrun not found."
+  rm -f "$NOTARY_ZIP"
+  ditto -c -k --sequesterRsrc --keepParent "$STAGING_APP" "$NOTARY_ZIP"
+  xcrun notarytool submit "$NOTARY_ZIP" --wait --keychain-profile "$NOTARY_PROFILE"
+  xcrun stapler staple "$STAGING_APP"
+fi
+
+rm -f "$ZIP_PATH"
+ditto -c -k --sequesterRsrc --keepParent "$STAGING_APP" "$ZIP_PATH"
+
+SHA=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
+echo "$SHA" > "$DIST_DIR/${APP_NAME}.zip.sha256"
+
+echo -e "${GREEN}OK${OFF} - Created $ZIP_PATH"
+echo -e "${GREEN}OK${OFF} - SHA256 $SHA"

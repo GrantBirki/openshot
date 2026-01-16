@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'grantbirki/oneshot' # change this to your repository
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     outputs:
       artifact-id: ${{ steps.upload-artifact.outputs.artifact-id }}
 
@@ -26,6 +26,9 @@ jobs:
       - name: bootstrap
         run: script/bootstrap
 
+      - name: package
+        run: script/package
+
       - name: upload artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # pin@v6.0.0
         id: upload-artifact
@@ -34,6 +37,12 @@ jobs:
           path: dist/
           retention-days: 5
           if-no-files-found: error
+
+      - name: create release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # pin@v2.5.0
+        with:
+          files: dist/*
+          generate_release_notes: true
 
   sign:
     needs: release
