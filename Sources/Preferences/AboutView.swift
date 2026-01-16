@@ -15,7 +15,8 @@ struct AboutInfoView: View {
                 .underline()
             Text("•")
             if let sha = BuildInfo.gitSHA,
-               let url = URL(string: "https://github.com/GrantBirki/oneshot/tree/\(sha)") {
+               let url = URL(string: "https://github.com/GrantBirki/oneshot/tree/\(sha)")
+            {
                 Link("commit \(BuildInfo.shortGitSHA)", destination: url)
                     .foregroundStyle(linkColor)
                     .tint(linkColor)
