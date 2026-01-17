@@ -14,7 +14,6 @@ final class CaptureManager {
 
     func captureSelection() {
         guard ScreenCapturePermission.ensureAccess() else { return }
-        NSApp.activate(ignoringOtherApps: true)
         selectionOverlay.beginSelection(
             showSelectionCoordinates: settings.showSelectionCoordinates,
         ) { [weak self] selection in
@@ -33,7 +32,6 @@ final class CaptureManager {
 
     func captureWindow() {
         guard ScreenCapturePermission.ensureAccess() else { return }
-        NSApp.activate(ignoringOtherApps: true)
         windowOverlay.beginSelection { [weak self] windowInfo in
             guard let self, let windowInfo else { return }
             if let image = ScreenCaptureService.capture(windowID: windowInfo.id) {

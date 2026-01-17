@@ -4,6 +4,12 @@ final class SelectionOverlayController {
     private var windows: [OverlayWindow] = []
     private var views: [SelectionOverlayView] = []
     private var selectionState: SelectionOverlayState?
+    private var keyMonitor: Any?
+    private var globalKeyMonitor: Any?
+
+    private enum KeyCodes {
+        static let escape: UInt16 = 53
+    }
 
     struct SelectionResult {
         let rect: CGRect
@@ -29,7 +35,7 @@ final class SelectionOverlayController {
         selectionState = state
         let refreshViews: () -> Void = { [weak self] in
             guard let self else { return }
-            views.forEach { $0.needsDisplay = true }
+            views.forEach { $0.updateOverlay() }
         }
 
         for screen in screens {
@@ -44,12 +50,14 @@ final class SelectionOverlayController {
                 finish(nil)
             }
             window.contentView = view
-            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
             window.makeFirstResponder(view)
             windowID = CGWindowID(window.windowNumber)
             windows.append(window)
             views.append(view)
         }
+
+        startKeyMonitor(onCancel: { finish(nil) })
     }
 
     private func end() {
@@ -59,6 +67,42 @@ final class SelectionOverlayController {
         windows.removeAll()
         views.removeAll()
         selectionState = nil
+        stopKeyMonitor()
+    }
+
+    private func startKeyMonitor(onCancel: @escaping () -> Void) {
+        if keyMonitor == nil {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+                if event.keyCode == KeyCodes.escape {
+                    onCancel()
+                    return nil
+                }
+                return event
+            }
+        }
+
+        if globalKeyMonitor == nil {
+            globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { event in
+                DispatchQueue.main.async {
+                    guard !NSApp.isActive else { return }
+                    if event.keyCode == KeyCodes.escape {
+                        onCancel()
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        keyMonitor = nil
+
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        globalKeyMonitor = nil
     }
 }
 
@@ -94,10 +138,19 @@ final class SelectionOverlayView: NSView {
     var onCancel: (() -> Void)?
     var onSelectionChanged: (() -> Void)?
     private let state: SelectionOverlayState
+    private let dimmingLayer = CAShapeLayer()
+    private let borderLayer = CAShapeLayer()
+    private let metricsBackgroundLayer = CAShapeLayer()
+    private let metricsTextLayer = CATextLayer()
+    private let metricsFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
 
     init(frame frameRect: NSRect, state: SelectionOverlayState) {
         self.state = state
         super.init(frame: frameRect)
+        wantsLayer = true
+        layer = CALayer()
+        layer?.backgroundColor = NSColor.clear.cgColor
+        configureLayers()
     }
 
     required init?(coder _: NSCoder) {
@@ -105,6 +158,21 @@ final class SelectionOverlayView: NSView {
     }
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+        true
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        updateLayerScale()
+        updateOverlay()
+    }
+
+    override func layout() {
+        super.layout()
+        updateOverlay()
+    }
 
     override func resetCursorRects() {
         super.resetCursorRects()
@@ -159,41 +227,85 @@ final class SelectionOverlayView: NSView {
         onCancel?()
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        NSColor.black.withAlphaComponent(0.35).setFill()
-        dirtyRect.fill()
+    func updateOverlay() {
+        guard layer != nil else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
 
-        drawSelectionOutline()
-        drawSelectionMetrics()
+        dimmingLayer.frame = bounds
+        borderLayer.frame = bounds
+        metricsBackgroundLayer.frame = bounds
+
+        let selection = selectionRect()
+        dimmingLayer.path = OverlayPathBuilder.dimmingPath(bounds: bounds, cutout: selection)
+        if let selection {
+            borderLayer.path = CGPath(rect: selection, transform: nil)
+            borderLayer.isHidden = false
+        } else {
+            borderLayer.path = nil
+            borderLayer.isHidden = true
+        }
+
+        updateMetrics()
+
+        CATransaction.commit()
     }
 
-    private func drawSelectionOutline() {
-        guard let selection = selectionRect(),
-              let context = NSGraphicsContext.current?.cgContext
-        else { return }
-        context.setBlendMode(.clear)
-        context.fill(selection)
-        context.setBlendMode(.normal)
+    private func configureLayers() {
+        dimmingLayer.fillRule = .evenOdd
+        dimmingLayer.fillColor = NSColor.black.withAlphaComponent(0.35).cgColor
 
-        NSColor(calibratedWhite: 0.92, alpha: 1).setStroke()
-        let path = NSBezierPath(rect: selection)
-        path.lineWidth = 1
-        path.stroke()
+        borderLayer.fillColor = nil
+        borderLayer.strokeColor = NSColor(calibratedWhite: 0.92, alpha: 1).cgColor
+        borderLayer.lineWidth = 1
+        borderLayer.isHidden = true
+
+        metricsBackgroundLayer.fillColor = NSColor.black.withAlphaComponent(0.75).cgColor
+        metricsBackgroundLayer.isHidden = true
+
+        metricsTextLayer.font = metricsFont
+        metricsTextLayer.fontSize = metricsFont.pointSize
+        metricsTextLayer.foregroundColor = NSColor.white.cgColor
+        metricsTextLayer.alignmentMode = .left
+        metricsTextLayer.isWrapped = false
+        metricsTextLayer.isHidden = true
+
+        layer?.addSublayer(dimmingLayer)
+        layer?.addSublayer(borderLayer)
+        layer?.addSublayer(metricsBackgroundLayer)
+        layer?.addSublayer(metricsTextLayer)
     }
 
-    private func drawSelectionMetrics() {
+    private func updateLayerScale() {
+        let scale = window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor
+            ?? 2.0
+        dimmingLayer.contentsScale = scale
+        borderLayer.contentsScale = scale
+        metricsBackgroundLayer.contentsScale = scale
+        metricsTextLayer.contentsScale = scale
+    }
+
+    private func updateMetrics() {
         guard let window,
               let current = state.current,
               let text = state.selectionSizeText
-        else { return }
+        else {
+            metricsBackgroundLayer.isHidden = true
+            metricsTextLayer.isHidden = true
+            metricsTextLayer.string = nil
+            return
+        }
 
         let anchor = window.convertPoint(fromScreen: current)
-        guard bounds.contains(anchor) else { return }
+        guard bounds.contains(anchor) else {
+            metricsBackgroundLayer.isHidden = true
+            metricsTextLayer.isHidden = true
+            metricsTextLayer.string = nil
+            return
+        }
 
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.white,
-        ]
+        let attributes: [NSAttributedString.Key: Any] = [.font: metricsFont, .foregroundColor: NSColor.white]
         let attributedText = NSAttributedString(string: text, attributes: attributes)
         let textSize = attributedText.size()
         let padding = CGSize(width: 6, height: 4)
@@ -206,9 +318,22 @@ final class SelectionOverlayView: NSView {
         )
         bubbleRect = clamp(bubbleRect, to: bounds, margin: 8)
 
-        NSColor.black.withAlphaComponent(0.75).setFill()
-        NSBezierPath(roundedRect: bubbleRect, xRadius: 6, yRadius: 6).fill()
-        attributedText.draw(at: CGPoint(x: bubbleRect.minX + padding.width, y: bubbleRect.minY + padding.height))
+        metricsBackgroundLayer.path = CGPath(
+            roundedRect: bubbleRect,
+            cornerWidth: 6,
+            cornerHeight: 6,
+            transform: nil,
+        )
+        metricsBackgroundLayer.isHidden = false
+
+        metricsTextLayer.string = attributedText
+        metricsTextLayer.frame = CGRect(
+            x: bubbleRect.minX + padding.width,
+            y: bubbleRect.minY + padding.height,
+            width: textSize.width,
+            height: textSize.height,
+        )
+        metricsTextLayer.isHidden = false
     }
 
     private func clamp(_ rect: CGRect, to bounds: CGRect, margin: CGFloat) -> CGRect {
@@ -224,23 +349,25 @@ final class SelectionOverlayView: NSView {
     }
 }
 
-final class OverlayWindow: NSWindow {
+final class OverlayWindow: NSPanel {
     override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
+    override var canBecomeMain: Bool { false }
 
     init(contentRect: CGRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: .borderless,
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,
         )
+        isFloatingPanel = true
         isOpaque = false
         backgroundColor = .clear
         level = .screenSaver
         hasShadow = false
         ignoresMouseEvents = false
         acceptsMouseMovedEvents = true
+        hidesOnDeactivate = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     }
 }
