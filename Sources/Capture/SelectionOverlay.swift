@@ -29,8 +29,8 @@ final class SelectionOverlayController {
             return
         }
 
-        if !NSApp.isActive { NSApp.activate(ignoringOtherApps: true) }
         cursorStack.pushCrosshair()
+        NSApp.activate(ignoringOtherApps: true)
 
         var didFinish = false
         let finish: (SelectionResult?) -> Void = { [weak self] result in
@@ -74,6 +74,9 @@ final class SelectionOverlayController {
         if !didSetKeyWindow { windows.first?.makeKeyAndOrderFront(nil) }
 
         startKeyMonitor(onCancel: { finish(nil) })
+        DispatchQueue.main.async { [weak self] in
+            self?.forceCrosshairCursor()
+        }
     }
 
     private func end() {
@@ -101,7 +104,6 @@ final class SelectionOverlayController {
         if globalKeyMonitor == nil {
             globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { event in
                 DispatchQueue.main.async {
-                    guard !NSApp.isActive else { return }
                     if event.keyCode == KeyCodes.escape {
                         onCancel()
                     }
@@ -121,32 +123,11 @@ final class SelectionOverlayController {
         }
         globalKeyMonitor = nil
     }
-}
 
-final class SelectionOverlayState {
-    var start: CGPoint?
-    var current: CGPoint?
-    let showSelectionCoordinates: Bool
-
-    init(showSelectionCoordinates: Bool) {
-        self.showSelectionCoordinates = showSelectionCoordinates
-    }
-
-    var rect: CGRect? {
-        guard let start, let current else { return nil }
-        return CGRect(
-            x: min(start.x, current.x),
-            y: min(start.y, current.y),
-            width: abs(start.x - current.x),
-            height: abs(start.y - current.y),
-        )
-    }
-
-    var selectionSizeText: String? {
-        guard showSelectionCoordinates, let start, let current else { return nil }
-        let width = Int(abs(current.x - start.x).rounded())
-        let height = Int(abs(current.y - start.y).rounded())
-        return "\(width) x \(height)"
+    private func forceCrosshairCursor() {
+        guard !views.isEmpty else { return }
+        views.forEach { $0.window?.invalidateCursorRects(for: $0) }
+        NSCursor.crosshair.set()
     }
 }
 
