@@ -6,7 +6,13 @@ This document describes the settings available in OneShot.
 
 - `Launch at login`: Start OneShot automatically when you sign in.
 - `Hide menu bar icon`: Remove the OneShot icon from the menu bar. To bring it back, open OneShot from Spotlight and disable this setting.
+
+## Selection
+
 - `Show selection coordinates`: Show the selection size next to the crosshair while selecting.
+- `Selection overlay`: Choose which area is dimmed while dragging a selection.
+  - `Dim selection`: Only the selected rectangle is dimmed.
+  - `Dim outside selection`: The rest of the screen is dimmed while the selection stays clear.
 
 ## Output
 

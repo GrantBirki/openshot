@@ -19,6 +19,31 @@ enum SaveLocationOption: String, CaseIterable, Identifiable {
     }
 }
 
+enum SelectionOverlayMode: String, CaseIterable, Identifiable {
+    case macosNativeLike
+    case inverse
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .macosNativeLike:
+            "Dim selection"
+        case .inverse:
+            "Dim outside selection"
+        }
+    }
+
+    var next: SelectionOverlayMode {
+        switch self {
+        case .macosNativeLike:
+            .inverse
+        case .inverse:
+            .macosNativeLike
+        }
+    }
+}
+
 enum PreviewDisabledOutputBehavior: String, CaseIterable, Identifiable {
     case saveToDisk
     case clipboardOnly
@@ -105,6 +130,10 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(showSelectionCoordinates, forKey: Keys.showSelectionCoordinates) }
     }
 
+    @Published var selectionOverlayMode: SelectionOverlayMode {
+        didSet { defaults.set(selectionOverlayMode.rawValue, forKey: Keys.selectionOverlayMode) }
+    }
+
     @Published var saveDelaySeconds: Double {
         didSet { defaults.set(saveDelaySeconds, forKey: Keys.saveDelaySeconds) }
     }
@@ -187,6 +216,9 @@ final class SettingsStore: ObservableObject {
         autoLaunchEnabled = defaults.object(forKey: Keys.autoLaunchEnabled) as? Bool ?? false
         menuBarIconHidden = defaults.object(forKey: Keys.menuBarIconHidden) as? Bool ?? false
         showSelectionCoordinates = defaults.object(forKey: Keys.showSelectionCoordinates) as? Bool ?? true
+        let overlayModeRaw = defaults.string(forKey: Keys.selectionOverlayMode)
+            ?? SelectionOverlayMode.inverse.rawValue
+        selectionOverlayMode = SelectionOverlayMode(rawValue: overlayModeRaw) ?? .inverse
         if let saveDelay = defaults.object(forKey: Keys.saveDelaySeconds) as? Double {
             saveDelaySeconds = saveDelay
         } else if let legacyDelay = defaults.object(forKey: LegacyKeys.previewTimeoutSeconds) as? Double {
@@ -306,6 +338,7 @@ private enum Keys {
     static let autoLaunchEnabled = "settings.autoLaunchEnabled"
     static let menuBarIconHidden = "settings.menuBarIconHidden"
     static let showSelectionCoordinates = "settings.showSelectionCoordinates"
+    static let selectionOverlayMode = "settings.selectionOverlayMode"
     static let saveDelaySeconds = "settings.saveDelaySeconds"
     static let previewTimeoutEnabled = "settings.previewTimeoutEnabled"
     static let previewEnabled = "settings.previewEnabled"

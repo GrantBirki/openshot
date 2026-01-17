@@ -21,6 +21,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertFalse(settings.autoLaunchEnabled)
         XCTAssertFalse(settings.menuBarIconHidden)
         XCTAssertTrue(settings.showSelectionCoordinates)
+        XCTAssertEqual(settings.selectionOverlayMode, .inverse)
         XCTAssertEqual(settings.saveDelaySeconds, 7)
         XCTAssertTrue(settings.previewTimeoutEnabled)
         XCTAssertEqual(settings.previewTimeout, 7)
@@ -41,6 +42,7 @@ final class SettingsStoreTests: XCTestCase {
         settings.autoLaunchEnabled = true
         settings.menuBarIconHidden = true
         settings.showSelectionCoordinates = false
+        settings.selectionOverlayMode = .macosNativeLike
         settings.saveDelaySeconds = 3
         settings.previewTimeoutEnabled = false
         settings.previewEnabled = false
@@ -59,6 +61,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertTrue(settings.autoLaunchEnabled)
         XCTAssertTrue(settings.menuBarIconHidden)
         XCTAssertFalse(settings.showSelectionCoordinates)
+        XCTAssertEqual(settings.selectionOverlayMode, .macosNativeLike)
         XCTAssertEqual(settings.saveDelaySeconds, 3)
         XCTAssertFalse(settings.previewTimeoutEnabled)
         XCTAssertNil(settings.previewTimeout)

@@ -25,8 +25,17 @@ struct SettingsView: View {
                         }
                     }
                     .help("Hide the OneShot icon from the menu bar.")
+            }
+
+            Section("Selection") {
                 Toggle("Show selection coordinates", isOn: $settings.showSelectionCoordinates)
                     .help("Show the selection size next to the crosshair.")
+                Picker("Selection overlay", selection: $settings.selectionOverlayMode) {
+                    ForEach(SelectionOverlayMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .help("Control what gets dimmed while selecting.")
             }
 
             Section("Output") {

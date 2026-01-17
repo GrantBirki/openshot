@@ -17,10 +17,15 @@ final class CaptureManager {
         NSApp.activate(ignoringOtherApps: true)
         selectionOverlay.beginSelection(
             showSelectionCoordinates: settings.showSelectionCoordinates,
-        ) { [weak self] selection in
-            guard let self, let selection else { return }
-            capture(rect: selection.rect, excludingWindowID: selection.excludeWindowID)
-        }
+            overlayMode: settings.selectionOverlayMode,
+            onOverlayModeChanged: { [weak self] mode in
+                self?.settings.selectionOverlayMode = mode
+            },
+            completion: { [weak self] selection in
+                guard let self, let selection else { return }
+                capture(rect: selection.rect, excludingWindowID: selection.excludeWindowID)
+            },
+        )
     }
 
     func captureFullScreen() {

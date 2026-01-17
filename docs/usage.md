@@ -29,6 +29,8 @@ Default hotkeys: none. Set them in Settings > Hotkeys.
 Selection overlay:
 
 - The size label next to the crosshair can be toggled in Settings.
+- Choose whether to dim the selection or the outside area in Settings.
+- While selecting, press Tab to cycle overlay modes (the last choice is saved).
 
 ## Preview Tile
 

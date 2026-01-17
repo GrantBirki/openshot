@@ -23,6 +23,7 @@ Open source screenshot utility for macOS with QoL improvements over the native A
 - Customizable hotkeys.
 - Optional auto-dismiss preview with save delay control.
 - Optional menu bar icon hiding (restore via Spotlight).
+- Selection overlay modes (dim selection or dim outside).
 
 ## 🚀 Installation
 
