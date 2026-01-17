@@ -5,6 +5,7 @@ This document describes the settings available in OneShot.
 ## General
 
 - `Launch at login`: Start OneShot automatically when you sign in.
+- `Hide menu bar icon`: Remove the OneShot icon from the menu bar. To bring it back, open OneShot from Spotlight and disable this setting.
 
 ## Output
 

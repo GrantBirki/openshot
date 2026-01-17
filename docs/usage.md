@@ -54,3 +54,9 @@ stays until you act, but the file still saves after the delay.
 ## Settings
 
 All preferences and defaults live in [`docs/settings.md`](settings.md).
+
+## Menu Bar Icon
+
+Opening OneShot from Spotlight always shows the Settings window. This is useful
+if you hide the menu bar icon in Settings; just search for OneShot and turn the
+icon back on.

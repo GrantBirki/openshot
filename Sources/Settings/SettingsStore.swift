@@ -98,6 +98,10 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(autoLaunchEnabled, forKey: Keys.autoLaunchEnabled) }
     }
 
+    @Published var menuBarIconHidden: Bool {
+        didSet { defaults.set(menuBarIconHidden, forKey: Keys.menuBarIconHidden) }
+    }
+
     @Published var saveDelaySeconds: Double {
         didSet { defaults.set(saveDelaySeconds, forKey: Keys.saveDelaySeconds) }
     }
@@ -178,6 +182,7 @@ final class SettingsStore: ObservableObject {
         self.defaults = defaults
 
         autoLaunchEnabled = defaults.object(forKey: Keys.autoLaunchEnabled) as? Bool ?? false
+        menuBarIconHidden = defaults.object(forKey: Keys.menuBarIconHidden) as? Bool ?? false
         if let saveDelay = defaults.object(forKey: Keys.saveDelaySeconds) as? Double {
             saveDelaySeconds = saveDelay
         } else if let legacyDelay = defaults.object(forKey: LegacyKeys.previewTimeoutSeconds) as? Double {
@@ -303,6 +308,7 @@ final class SettingsStore: ObservableObject {
 
 private enum Keys {
     static let autoLaunchEnabled = "settings.autoLaunchEnabled"
+    static let menuBarIconHidden = "settings.menuBarIconHidden"
     static let saveDelaySeconds = "settings.saveDelaySeconds"
     static let previewTimeoutEnabled = "settings.previewTimeoutEnabled"
     static let previewEnabled = "settings.previewEnabled"

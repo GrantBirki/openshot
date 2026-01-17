@@ -19,6 +19,7 @@ final class SettingsStoreTests: XCTestCase {
     func testDefaultsAreApplied() {
         let settings = SettingsStore(defaults: defaults)
         XCTAssertFalse(settings.autoLaunchEnabled)
+        XCTAssertFalse(settings.menuBarIconHidden)
         XCTAssertEqual(settings.saveDelaySeconds, 7)
         XCTAssertTrue(settings.previewTimeoutEnabled)
         XCTAssertEqual(settings.previewTimeout, 7)
@@ -37,6 +38,7 @@ final class SettingsStoreTests: XCTestCase {
     func testValuesPersistToDefaults() {
         var settings = SettingsStore(defaults: defaults)
         settings.autoLaunchEnabled = true
+        settings.menuBarIconHidden = true
         settings.saveDelaySeconds = 3
         settings.previewTimeoutEnabled = false
         settings.previewEnabled = false
@@ -53,6 +55,7 @@ final class SettingsStoreTests: XCTestCase {
 
         settings = SettingsStore(defaults: defaults)
         XCTAssertTrue(settings.autoLaunchEnabled)
+        XCTAssertTrue(settings.menuBarIconHidden)
         XCTAssertEqual(settings.saveDelaySeconds, 3)
         XCTAssertFalse(settings.previewTimeoutEnabled)
         XCTAssertNil(settings.previewTimeout)
