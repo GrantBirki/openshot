@@ -67,6 +67,9 @@ struct SettingsView: View {
                                 if normalized != settings.selectionDimmingColorHex {
                                     settings.selectionDimmingColorHex = normalized
                                 }
+                                if digitsCount == 8, normalized != selectionDimmingHexInput {
+                                    selectionDimmingHexInput = normalized
+                                }
                             }
                     }
                 }
@@ -198,6 +201,11 @@ struct SettingsView: View {
         } message: {
             Text("To bring it back, open OneShot from Spotlight and turn this setting off.")
         }
+        .onChange(of: selectionDimmingHexFocused) { focused in
+            if !focused {
+                normalizeSelectionDimmingHexInput()
+            }
+        }
         .onChange(of: settings.selectionDimmingColorHex) { newValue in
             if !selectionDimmingHexFocused, selectionDimmingHexInput != newValue {
                 selectionDimmingHexInput = newValue
@@ -247,6 +255,22 @@ struct SettingsView: View {
         guard !digits.isEmpty else { return "" }
         let limited = String(digits.prefix(8))
         return "#\(limited.uppercased())"
+    }
+
+    private func normalizeSelectionDimmingHexInput() {
+        let sanitized = sanitizeHexInput(selectionDimmingHexInput)
+        guard let normalized = ColorHexCodec.normalized(sanitized) else {
+            if selectionDimmingHexInput != settings.selectionDimmingColorHex {
+                selectionDimmingHexInput = settings.selectionDimmingColorHex
+            }
+            return
+        }
+        if normalized != settings.selectionDimmingColorHex {
+            settings.selectionDimmingColorHex = normalized
+        }
+        if normalized != selectionDimmingHexInput {
+            selectionDimmingHexInput = normalized
+        }
     }
 
     private var selectionDimmingColorBinding: Binding<Color> {
