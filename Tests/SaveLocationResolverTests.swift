@@ -3,6 +3,27 @@ import Foundation
 import XCTest
 
 final class SaveLocationResolverTests: XCTestCase {
+    func testDownloadsOptionUsesDownloadsDirectory() {
+        let resolved = SaveLocationResolver.resolve(option: .downloads, customPath: "ignored")
+        let expected = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+
+        XCTAssertEqual(resolved, expected)
+    }
+
+    func testDesktopOptionUsesDesktopDirectory() {
+        let resolved = SaveLocationResolver.resolve(option: .desktop, customPath: "ignored")
+        let expected = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
+
+        XCTAssertEqual(resolved, expected)
+    }
+
+    func testDocumentsOptionUsesDocumentsDirectory() {
+        let resolved = SaveLocationResolver.resolve(option: .documents, customPath: "ignored")
+        let expected = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+        XCTAssertEqual(resolved, expected)
+    }
+
     func testCustomPathExpandsTilde() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let relative = "oneshot_test_\(UUID().uuidString)"

@@ -54,4 +54,28 @@ final class SelectionOverlayStateTests: XCTestCase {
 
         XCTAssertNil(state.selectionSizeText)
     }
+
+    func testRectCalculatesBoundsFromStartAndCurrent() {
+        let state = SelectionOverlayState(
+            showSelectionCoordinates: true,
+            dimmingMode: .fullScreen,
+            selectionDimmingColor: .black,
+        )
+        state.start = CGPoint(x: 80, y: 20)
+        state.current = CGPoint(x: 30, y: 70)
+
+        XCTAssertEqual(state.rect, CGRect(x: 30, y: 20, width: 50, height: 50))
+    }
+
+    func testRectAllowsZeroSizedSelection() {
+        let state = SelectionOverlayState(
+            showSelectionCoordinates: true,
+            dimmingMode: .fullScreen,
+            selectionDimmingColor: .black,
+        )
+        state.start = CGPoint(x: 10, y: 10)
+        state.current = CGPoint(x: 10, y: 10)
+
+        XCTAssertEqual(state.rect, CGRect(x: 10, y: 10, width: 0, height: 0))
+    }
 }

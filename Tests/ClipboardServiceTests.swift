@@ -14,6 +14,17 @@ final class ClipboardServiceTests: XCTestCase {
         XCTAssertNotNil(pasteboard.data(forType: .tiff))
     }
 
+    func testCopyWritesPNGForInvalidData() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.clearContents()
+
+        let pngData = Data([0x00, 0x01, 0x02])
+        ClipboardService.copy(pngData: pngData, to: pasteboard)
+
+        XCTAssertEqual(pasteboard.data(forType: .png), pngData)
+        XCTAssertTrue(pasteboard.types?.contains(.png) ?? false)
+    }
+
     private func makePNGData(width: Int, height: Int) -> Data {
         let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
