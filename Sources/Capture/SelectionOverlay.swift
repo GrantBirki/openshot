@@ -1,16 +1,31 @@
 import AppKit
+import os.log
 
 final class SelectionOverlayController {
     private var windows: [OverlayWindow] = []
     private var views: [SelectionOverlayView] = []
-    private var selectionState: SelectionOverlayState?
+    private var keyMonitor: Any?
+    private var globalKeyMonitor: Any?
+    private let log = OSLog(subsystem: "com.grantbirki.oneshot", category: "SelectionOverlay")
+
+    private enum KeyCodes {
+        static let escape: UInt16 = 53
+    }
+
+    init() {}
 
     struct SelectionResult {
         let rect: CGRect
         let excludeWindowID: CGWindowID?
     }
 
-    func beginSelection(showSelectionCoordinates: Bool, completion: @escaping (SelectionResult?) -> Void) {
+    func beginSelection(
+        showSelectionCoordinates: Bool,
+        visualCue: SelectionVisualCue,
+        dimmingMode: SelectionDimmingMode,
+        selectionDimmingColor: NSColor,
+        completion: @escaping (SelectionResult?) -> Void,
+    ) {
         guard windows.isEmpty else { return }
         let screens = NSScreen.screens
         guard !screens.isEmpty else {
@@ -25,12 +40,85 @@ final class SelectionOverlayController {
             end()
             completion(result)
         }
-        let state = SelectionOverlayState(showSelectionCoordinates: showSelectionCoordinates)
-        selectionState = state
+        let state = SelectionOverlayState(
+            showSelectionCoordinates: showSelectionCoordinates,
+            dimmingMode: dimmingMode,
+            selectionDimmingColor: selectionDimmingColor,
+        )
         let refreshViews: () -> Void = { [weak self] in
             guard let self else { return }
-            views.forEach { $0.needsDisplay = true }
+            views.forEach { $0.updateOverlay() }
         }
+        let mouseLocation = NSEvent.mouseLocation
+
+        let didSetKeyWindow = buildOverlayWindows(
+            screens: screens,
+            state: state,
+            mouseLocation: mouseLocation,
+            refreshViews: refreshViews,
+            finish: finish,
+        )
+
+        ensureKeyWindow(screens: screens, didSetKeyWindow: didSetKeyWindow)
+
+        startKeyMonitor(onCancel: { finish(nil) })
+        if visualCue == .pulse {
+            views.forEach { $0.showSelectionPulse(at: mouseLocation) }
+        }
+    }
+
+    private func end() {
+        for window in windows {
+            window.orderOut(nil)
+        }
+        windows.removeAll()
+        views.removeAll()
+        stopKeyMonitor()
+    }
+
+    private func startKeyMonitor(onCancel: @escaping () -> Void) {
+        if keyMonitor == nil {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+                if event.keyCode == KeyCodes.escape {
+                    onCancel()
+                    return nil
+                }
+                return event
+            }
+        }
+
+        if globalKeyMonitor == nil {
+            globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { event in
+                DispatchQueue.main.async {
+                    guard !NSApp.isActive else { return }
+                    if event.keyCode == KeyCodes.escape {
+                        onCancel()
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        keyMonitor = nil
+
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        globalKeyMonitor = nil
+    }
+
+    private func buildOverlayWindows(
+        screens: [NSScreen],
+        state: SelectionOverlayState,
+        mouseLocation: CGPoint,
+        refreshViews: @escaping () -> Void,
+        finish: @escaping (SelectionResult?) -> Void,
+    ) -> Bool {
+        var didSetKeyWindow = false
 
         for screen in screens {
             let window = OverlayWindow(contentRect: screen.frame)
@@ -44,211 +132,54 @@ final class SelectionOverlayController {
                 finish(nil)
             }
             window.contentView = view
-            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            if screen.frame.contains(mouseLocation) {
+                window.makeKeyAndOrderFront(nil)
+                didSetKeyWindow = true
+                logKeyWindow(window, screen: screen, message: "made key window")
+            }
             window.makeFirstResponder(view)
             windowID = CGWindowID(window.windowNumber)
             windows.append(window)
             views.append(view)
         }
+
+        return didSetKeyWindow
     }
 
-    private func end() {
-        for window in windows {
-            window.orderOut(nil)
+    private func ensureKeyWindow(screens: [NSScreen], didSetKeyWindow: Bool) {
+        if !didSetKeyWindow {
+            windows.first?.makeKeyAndOrderFront(nil)
+            if let window = windows.first, let screen = screens.first {
+                logKeyWindow(window, screen: screen, message: "default key window")
+            }
         }
-        windows.removeAll()
-        views.removeAll()
-        selectionState = nil
-    }
-}
-
-final class SelectionOverlayState {
-    var start: CGPoint?
-    var current: CGPoint?
-    let showSelectionCoordinates: Bool
-
-    init(showSelectionCoordinates: Bool) {
-        self.showSelectionCoordinates = showSelectionCoordinates
-    }
-
-    var rect: CGRect? {
-        guard let start, let current else { return nil }
-        return CGRect(
-            x: min(start.x, current.x),
-            y: min(start.y, current.y),
-            width: abs(start.x - current.x),
-            height: abs(start.y - current.y),
-        )
-    }
-
-    var selectionSizeText: String? {
-        guard showSelectionCoordinates, let start, let current else { return nil }
-        let width = Int(abs(current.x - start.x).rounded())
-        let height = Int(abs(current.y - start.y).rounded())
-        return "\(width) x \(height)"
-    }
-}
-
-final class SelectionOverlayView: NSView {
-    var onSelection: ((CGRect) -> Void)?
-    var onCancel: (() -> Void)?
-    var onSelectionChanged: (() -> Void)?
-    private let state: SelectionOverlayState
-
-    init(frame frameRect: NSRect, state: SelectionOverlayState) {
-        self.state = state
-        super.init(frame: frameRect)
-    }
-
-    required init?(coder _: NSCoder) {
-        nil
-    }
-
-    override var acceptsFirstResponder: Bool { true }
-
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        addCursorRect(bounds, cursor: .crosshair)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let window else { return }
-        let point = convert(event.locationInWindow, from: nil)
-        let screenPoint = window.convertPoint(toScreen: point)
-        state.start = screenPoint
-        state.current = screenPoint
-        onSelectionChanged?()
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard let window else { return }
-        let point = convert(event.locationInWindow, from: nil)
-        let screenPoint = window.convertPoint(toScreen: point)
-        state.current = screenPoint
-        onSelectionChanged?()
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        guard let window else {
-            onCancel?()
-            return
-        }
-
-        let point = convert(event.locationInWindow, from: nil)
-        state.current = window.convertPoint(toScreen: point)
-        onSelectionChanged?()
-        guard let rect = state.rect else {
-            onCancel?()
-            return
-        }
-
-        if rect.width < 2 || rect.height < 2 {
-            onCancel?()
-        } else {
-            onSelection?(rect)
+        // Ensure a key window is set for event handling.
+        if let keyWindow = windows.first(where: { $0.isKeyWindow }) ?? windows.first {
+            keyWindow.makeKeyAndOrderFront(nil)
+            #if DEBUG
+                os_log(
+                    "reassert key window %{public}d appActive=%{public}@",
+                    log: log,
+                    type: .debug,
+                    keyWindow.windowNumber,
+                    "\(NSApp.isActive)",
+                )
+            #endif
         }
     }
 
-    override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 {
-            onCancel?()
-        }
-    }
-
-    override func cancelOperation(_: Any?) {
-        onCancel?()
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        NSColor.black.withAlphaComponent(0.35).setFill()
-        dirtyRect.fill()
-
-        drawSelectionOutline()
-        drawSelectionMetrics()
-    }
-
-    private func drawSelectionOutline() {
-        guard let selection = selectionRect(),
-              let context = NSGraphicsContext.current?.cgContext
-        else { return }
-        context.setBlendMode(.clear)
-        context.fill(selection)
-        context.setBlendMode(.normal)
-
-        NSColor(calibratedWhite: 0.92, alpha: 1).setStroke()
-        let path = NSBezierPath(rect: selection)
-        path.lineWidth = 1
-        path.stroke()
-    }
-
-    private func drawSelectionMetrics() {
-        guard let window,
-              let current = state.current,
-              let text = state.selectionSizeText
-        else { return }
-
-        let anchor = window.convertPoint(fromScreen: current)
-        guard bounds.contains(anchor) else { return }
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.white,
-        ]
-        let attributedText = NSAttributedString(string: text, attributes: attributes)
-        let textSize = attributedText.size()
-        let padding = CGSize(width: 6, height: 4)
-        let offset = CGPoint(x: 12, y: 12)
-        var bubbleRect = CGRect(
-            x: anchor.x + offset.x,
-            y: anchor.y + offset.y,
-            width: textSize.width + padding.width * 2,
-            height: textSize.height + padding.height * 2,
-        )
-        bubbleRect = clamp(bubbleRect, to: bounds, margin: 8)
-
-        NSColor.black.withAlphaComponent(0.75).setFill()
-        NSBezierPath(roundedRect: bubbleRect, xRadius: 6, yRadius: 6).fill()
-        attributedText.draw(at: CGPoint(x: bubbleRect.minX + padding.width, y: bubbleRect.minY + padding.height))
-    }
-
-    private func clamp(_ rect: CGRect, to bounds: CGRect, margin: CGFloat) -> CGRect {
-        var rect = rect
-        rect.origin.x = min(max(rect.origin.x, bounds.minX + margin), bounds.maxX - rect.width - margin)
-        rect.origin.y = min(max(rect.origin.y, bounds.minY + margin), bounds.maxY - rect.height - margin)
-        return rect
-    }
-
-    private func selectionRect() -> CGRect? {
-        guard let rect = state.rect, let window else { return nil }
-        return window.convertFromScreen(rect)
-    }
-}
-
-final class OverlayWindow: NSWindow {
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
-
-    init(contentRect: CGRect) {
-        super.init(
-            contentRect: contentRect,
-            styleMask: .borderless,
-            backing: .buffered,
-            defer: false,
-        )
-        isOpaque = false
-        backgroundColor = .clear
-        level = .screenSaver
-        hasShadow = false
-        ignoresMouseEvents = false
-        acceptsMouseMovedEvents = true
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-    }
-}
-
-enum ScreenFrameHelper {
-    static func allScreensFrame() -> CGRect? {
-        let screens = NSScreen.screens
-        guard !screens.isEmpty else { return nil }
-        return screens.reduce(CGRect.null) { $0.union($1.frame) }
+    private func logKeyWindow(_ window: NSWindow, screen: NSScreen, message: String) {
+        #if DEBUG
+            os_log(
+                "%{public}@ %{public}d for screen %{public}@, appActive=%{public}@",
+                log: log,
+                type: .debug,
+                message,
+                window.windowNumber,
+                "\(screen.frame)",
+                "\(NSApp.isActive)",
+            )
+        #endif
     }
 }

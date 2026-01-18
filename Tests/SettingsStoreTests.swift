@@ -1,3 +1,4 @@
+import AppKit
 @testable import OneShot
 import XCTest
 
@@ -28,6 +29,12 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(settings.previewAutoDismissBehavior, .saveToDisk)
         XCTAssertEqual(settings.previewReplacementBehavior, .saveImmediately)
         XCTAssertEqual(settings.previewDisabledOutputBehavior, .saveToDisk)
+        XCTAssertEqual(settings.selectionDimmingMode, .fullScreen)
+        XCTAssertEqual(
+            settings.selectionDimmingColorHex,
+            ColorHexCodec.defaultSelectionDimmingColorHex,
+        )
+        XCTAssertEqual(settings.selectionVisualCue, .none)
         XCTAssertTrue(settings.autoCopyToClipboard)
         XCTAssertEqual(settings.saveLocationOption, .downloads)
         XCTAssertEqual(settings.filenamePrefix, "screenshot")
@@ -47,6 +54,9 @@ final class SettingsStoreTests: XCTestCase {
         settings.previewAutoDismissBehavior = .discard
         settings.previewReplacementBehavior = .discard
         settings.previewDisabledOutputBehavior = .clipboardOnly
+        settings.selectionDimmingMode = .selectionOnly
+        settings.selectionDimmingColorHex = "#336699CC"
+        settings.selectionVisualCue = .none
         settings.autoCopyToClipboard = false
         settings.saveLocationOption = .desktop
         settings.customSavePath = "/tmp"
@@ -66,6 +76,9 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(settings.previewAutoDismissBehavior, .discard)
         XCTAssertEqual(settings.previewReplacementBehavior, .discard)
         XCTAssertEqual(settings.previewDisabledOutputBehavior, .clipboardOnly)
+        XCTAssertEqual(settings.selectionDimmingMode, .selectionOnly)
+        XCTAssertEqual(settings.selectionDimmingColorHex, "#336699CC")
+        XCTAssertEqual(settings.selectionVisualCue, .none)
         XCTAssertFalse(settings.autoCopyToClipboard)
         XCTAssertEqual(settings.saveLocationOption, .desktop)
         XCTAssertEqual(settings.customSavePath, "/tmp")
@@ -88,5 +101,55 @@ final class SettingsStoreTests: XCTestCase {
 
         settings = SettingsStore(defaults: defaults)
         XCTAssertNil(settings.hotkeySelection)
+    }
+
+    func testLegacyPreviewTimeoutMigratesToSaveDelay() {
+        defaults.set(3.5, forKey: "settings.previewTimeoutSeconds")
+
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settings.saveDelaySeconds, 3.5)
+        XCTAssertNil(defaults.object(forKey: "settings.previewTimeoutSeconds"))
+    }
+
+    func testLegacyHotkeyMigratesToStoredKeys() {
+        defaults.set("ctrl+z", forKey: "settings.hotkeySelection")
+
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settings.hotkeySelection, HotkeyParser.parse("ctrl+z"))
+        XCTAssertNil(defaults.object(forKey: "settings.hotkeySelection"))
+        XCTAssertNotNil(defaults.object(forKey: "settings.hotkeySelection.keyCode"))
+        XCTAssertNotNil(defaults.object(forKey: "settings.hotkeySelection.modifiers"))
+    }
+
+    func testStoredHotkeyRejectsSentinelKeyCode() {
+        defaults.set(-1, forKey: "settings.hotkeySelection.keyCode")
+        defaults.set(0, forKey: "settings.hotkeySelection.modifiers")
+
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertNil(settings.hotkeySelection)
+    }
+
+    func testStoredHotkeyLoadsUIntValues() {
+        defaults.set(UInt(6), forKey: "settings.hotkeySelection.keyCode")
+        defaults.set(UInt(NSEvent.ModifierFlags.control.rawValue), forKey: "settings.hotkeySelection.modifiers")
+
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(settings.hotkeySelection?.keyCode, 6)
+        XCTAssertTrue(settings.hotkeySelection?.modifiers.contains(.control) ?? false)
+    }
+
+    func testInvalidSelectionDimmingColorFallsBackToDefault() {
+        defaults.set("invalid", forKey: "settings.selectionDimmingColorHex")
+
+        let settings = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(
+            settings.selectionDimmingColorHex,
+            ColorHexCodec.defaultSelectionDimmingColorHex,
+        )
     }
 }
