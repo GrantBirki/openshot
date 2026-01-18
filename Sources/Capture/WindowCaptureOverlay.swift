@@ -177,6 +177,7 @@ final class WindowCaptureOverlayView: NSView {
 
     private func configureLayers() {
         dimmingLayer.fillColor = NSColor.black.withAlphaComponent(0.25).cgColor
+        dimmingLayer.fillRule = .evenOdd
 
         highlightLayer.fillColor = nil
         highlightLayer.strokeColor = NSColor.systemBlue.cgColor
