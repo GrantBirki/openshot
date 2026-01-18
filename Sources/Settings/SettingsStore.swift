@@ -92,6 +92,20 @@ enum PreviewAutoDismissBehavior: String, CaseIterable, Identifiable {
     }
 }
 
+enum SelectionVisualCue: String, CaseIterable, Identifiable {
+    case pulse
+    case none
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .pulse: "Red pulse"
+        case .none: "Disabled"
+        }
+    }
+}
+
 final class SettingsStore: ObservableObject {
     @Published var autoLaunchEnabled: Bool {
         didSet { defaults.set(autoLaunchEnabled, forKey: Keys.autoLaunchEnabled) }
@@ -127,6 +141,10 @@ final class SettingsStore: ObservableObject {
 
     @Published var previewDisabledOutputBehavior: PreviewDisabledOutputBehavior {
         didSet { defaults.set(previewDisabledOutputBehavior.rawValue, forKey: Keys.previewDisabledOutputBehavior) }
+    }
+
+    @Published var selectionVisualCue: SelectionVisualCue {
+        didSet { defaults.set(selectionVisualCue.rawValue, forKey: Keys.selectionVisualCue) }
     }
 
     @Published var autoCopyToClipboard: Bool {
@@ -206,6 +224,9 @@ final class SettingsStore: ObservableObject {
         let outputBehaviorRaw = defaults.string(forKey: Keys.previewDisabledOutputBehavior)
             ?? PreviewDisabledOutputBehavior.saveToDisk.rawValue
         previewDisabledOutputBehavior = PreviewDisabledOutputBehavior(rawValue: outputBehaviorRaw) ?? .saveToDisk
+        let selectionCueRaw = defaults.string(forKey: Keys.selectionVisualCue)
+            ?? SelectionVisualCue.pulse.rawValue
+        selectionVisualCue = SelectionVisualCue(rawValue: selectionCueRaw) ?? .pulse
 
         autoCopyToClipboard = defaults.object(forKey: Keys.autoCopyToClipboard) as? Bool ?? true
 
@@ -312,6 +333,7 @@ private enum Keys {
     static let previewAutoDismissBehavior = "settings.previewAutoDismissBehavior"
     static let previewReplacementBehavior = "settings.previewReplacementBehavior"
     static let previewDisabledOutputBehavior = "settings.previewDisabledOutputBehavior"
+    static let selectionVisualCue = "settings.selectionVisualCue"
     static let autoCopyToClipboard = "settings.autoCopyToClipboard"
     static let saveLocationOption = "settings.saveLocationOption"
     static let customSavePath = "settings.customSavePath"

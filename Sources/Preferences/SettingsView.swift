@@ -27,6 +27,12 @@ struct SettingsView: View {
                     .help("Hide the OneShot icon from the menu bar.")
                 Toggle("Show selection coordinates", isOn: $settings.showSelectionCoordinates)
                     .help("Show the selection size next to the crosshair.")
+                Picker("Selection visual cue", selection: $settings.selectionVisualCue) {
+                    ForEach(SelectionVisualCue.allCases) { cue in
+                        Text(cue.title).tag(cue)
+                    }
+                }
+                .help("Choose a visual cue shown when selection mode starts.")
             }
 
             Section("Output") {

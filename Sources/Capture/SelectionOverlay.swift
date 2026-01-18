@@ -20,7 +20,11 @@ final class SelectionOverlayController {
         let excludeWindowID: CGWindowID?
     }
 
-    func beginSelection(showSelectionCoordinates: Bool, completion: @escaping (SelectionResult?) -> Void) {
+    func beginSelection(
+        showSelectionCoordinates: Bool,
+        visualCue: SelectionVisualCue,
+        completion: @escaping (SelectionResult?) -> Void
+    ) {
         guard windows.isEmpty else { return }
         let screens = NSScreen.screens
         guard !screens.isEmpty else {
@@ -107,6 +111,9 @@ final class SelectionOverlayController {
         }
 
         startKeyMonitor(onCancel: { finish(nil) })
+        if visualCue == .pulse {
+            views.forEach { $0.showSelectionPulse(at: mouseLocation) }
+        }
     }
 
     private func end() {
@@ -164,6 +171,7 @@ final class SelectionOverlayView: NSView {
     private let metricsBackgroundLayer = CAShapeLayer()
     private let metricsTextLayer = CATextLayer()
     private let metricsFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+    private let pulseLayer = CALayer()
     private let log = OSLog(subsystem: "com.grantbirki.oneshot", category: "SelectionOverlayView")
 
     init(frame frameRect: NSRect, state: SelectionOverlayState) {
@@ -304,6 +312,7 @@ final class SelectionOverlayView: NSView {
         layer?.addSublayer(borderLayer)
         layer?.addSublayer(metricsBackgroundLayer)
         layer?.addSublayer(metricsTextLayer)
+        layer?.addSublayer(pulseLayer)
     }
 
     private func updateLayerScale() {
@@ -314,6 +323,7 @@ final class SelectionOverlayView: NSView {
         borderLayer.contentsScale = scale
         metricsBackgroundLayer.contentsScale = scale
         metricsTextLayer.contentsScale = scale
+        pulseLayer.contentsScale = scale
     }
 
     private func updateMetrics() {
@@ -376,5 +386,48 @@ final class SelectionOverlayView: NSView {
     private func selectionRect() -> CGRect? {
         guard let rect = state.rect, let window else { return nil }
         return window.convertFromScreen(rect)
+    }
+
+    func showSelectionPulse(at screenPoint: CGPoint) {
+        guard let window else { return }
+        let point = window.convertPoint(fromScreen: screenPoint)
+        guard bounds.contains(point), let layer else { return }
+
+        let size: CGFloat = 18
+        let rect = CGRect(
+            x: point.x - size / 2,
+            y: point.y - size / 2,
+            width: size,
+            height: size
+        )
+
+        let circle = CAShapeLayer()
+        circle.frame = rect
+        circle.path = CGPath(ellipseIn: CGRect(origin: .zero, size: CGSize(width: size, height: size)), transform: nil)
+        circle.fillColor = NSColor.systemRed.withAlphaComponent(0.22).cgColor
+        circle.strokeColor = NSColor.systemRed.cgColor
+        circle.lineWidth = 1.5
+
+        let scale = CABasicAnimation(keyPath: "transform.scale")
+        scale.fromValue = 0.7
+        scale.toValue = 1.4
+
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+
+        let group = CAAnimationGroup()
+        group.animations = [scale, fade]
+        group.duration = 0.3
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        group.fillMode = .forwards
+        group.isRemovedOnCompletion = false
+
+        layer.addSublayer(circle)
+        circle.add(group, forKey: "pulse")
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + group.duration) {
+            circle.removeFromSuperlayer()
+        }
     }
 }
