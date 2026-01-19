@@ -19,6 +19,8 @@ targets:
       properties:
         CFBundleDisplayName: $(APP_DISPLAY_NAME)
         CFBundleIconName: AppIcon
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         GIT_SHA: $(GIT_SHA)
         LSUIElement: true
         NSHighResolutionCapable: true

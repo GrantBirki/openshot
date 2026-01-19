@@ -14,6 +14,8 @@ struct AboutInfoView: View {
                 .tint(linkColor)
                 .underline()
             Text("•")
+            Text(BuildInfo.displayVersion)
+            Text("•")
             if let sha = BuildInfo.gitSHA,
                let url = URL(string: "https://github.com/GrantBirki/oneshot/tree/\(sha)")
             {

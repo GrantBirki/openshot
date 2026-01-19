@@ -1,7 +1,15 @@
 import Foundation
 
 enum BuildInfo {
+    static let appVersion: String? = appVersionValue()
     static let gitSHA: String? = gitSHAValue()
+
+    static let displayVersion: String = {
+        if let version = appVersion {
+            return "v\(version)"
+        }
+        return "v0.0.0"
+    }()
 
     static let shortGitSHA: String = {
         if let sha = gitSHA {
@@ -12,6 +20,23 @@ enum BuildInfo {
         }
         return "--------"
     }()
+
+    private static func appVersionValue() -> String? {
+        let candidates = [
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+            ProcessInfo.processInfo.environment["MARKETING_VERSION"],
+            ProcessInfo.processInfo.environment["CURRENT_PROJECT_VERSION"],
+        ]
+
+        for candidate in candidates {
+            if let sanitized = sanitize(candidate) {
+                return sanitized
+            }
+        }
+
+        return nil
+    }
 
     private static func gitSHAValue() -> String? {
         let candidates = [
