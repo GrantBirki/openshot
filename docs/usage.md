@@ -68,6 +68,8 @@ brew update
 brew upgrade --cask oneshot
 ```
 
+If OneShot is running, quit and relaunch it after upgrading so the new version loads.
+
 ## Uninstall
 
 ```bash
