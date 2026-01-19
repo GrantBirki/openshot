@@ -32,6 +32,14 @@ Homebrew (recommended):
 brew install --cask grantbirki/tap/oneshot
 ```
 
+If macOS says the app is damaged after install, remove the quarantine attribute:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OneShot.app
+```
+
+> Sadly, the app is unsigned, so Apple Gatekeeper quarantines the first launch. See [Unsigned Builds](#unsigned-builds) for details. The TL;DR is that I don't want to pay Apple $99/year for a Developer ID certificate.
+
 ## 📖 Usage
 
 - End-user guide: [docs/usage.md](docs/usage.md)
@@ -69,6 +77,11 @@ To open it:
 
 1) Right-click `OneShot.app` and choose Open.
 2) Or go to System Settings → Privacy & Security and click Open Anyway.
+3) If neither shows, remove the quarantine attribute:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OneShot.app
+```
 
 > Why? Apple Developer ID certs cost $99/year, and I don't want to pay Apple.
 

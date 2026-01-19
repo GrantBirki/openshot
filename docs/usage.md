@@ -9,6 +9,12 @@ This guide explains how to use OneShot day to day. For every setting and toggle,
 2) Launch OneShot from Applications (it runs as a menu bar app).
 3) When prompted, grant Screen Recording permission in System Settings.
 
+If macOS says the app is damaged after install, remove the quarantine attribute (no `sudo` needed):
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OneShot.app
+```
+
 ## Permissions
 
 OneShot needs Screen Recording permission to capture screenshots:
