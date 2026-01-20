@@ -17,7 +17,7 @@ final class ScrollingCaptureSession {
     }
 
     init(
-        captureInterval: TimeInterval = 0.01,
+        captureInterval: TimeInterval = 0.025,
         stateQueue: DispatchQueue = DispatchQueue(label: "oneshot.scrolling.capture", qos: .userInitiated),
         stitchQueue: DispatchQueue = DispatchQueue(label: "oneshot.scrolling.stitch", qos: .userInitiated),
         stitcher: ScrollingStitcher = ScrollingStitcher(),
@@ -58,7 +58,7 @@ final class ScrollingCaptureSession {
 
     private func captureLoop() async {
         defer { finish() }
-        let interval = max(captureInterval, 0.05)
+        let interval = max(captureInterval, 0.025)
         while !Task.isCancelled {
             if let image = await captureImage(captureRect) {
                 stitchQueue.async { [stitcher] in
