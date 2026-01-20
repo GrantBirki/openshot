@@ -17,7 +17,7 @@ final class ScrollingCaptureSession {
     }
 
     init(
-        captureInterval: TimeInterval = 0.15,
+        captureInterval: TimeInterval = 0.1,
         stateQueue: DispatchQueue = DispatchQueue(label: "oneshot.scrolling.capture", qos: .userInitiated),
         stitchQueue: DispatchQueue = DispatchQueue(label: "oneshot.scrolling.stitch", qos: .userInitiated),
         stitcher: ScrollingStitcher = ScrollingStitcher(),
