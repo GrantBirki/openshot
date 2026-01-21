@@ -10,8 +10,7 @@ enum ScreenCaptureService {
 
     private struct CapturedPiece {
         let image: CGImage
-        let rect: CGRect
-        let scale: CGFloat
+        let pixelRect: CGRect
     }
 
     static func captureFullScreen() async -> CGImage? {
@@ -31,7 +30,6 @@ enum ScreenCaptureService {
         let excludedWindow = await scWindow(for: excludingWindowID)
 
         var pieces: [CapturedPiece] = []
-        var maxScale: CGFloat = 1
 
         for target in targets {
             guard let display = displaysByID[target.displayID] else { continue }
@@ -42,7 +40,6 @@ enum ScreenCaptureService {
                 excludedWindow: excludedWindow,
             ) {
                 pieces.append(piece)
-                maxScale = max(maxScale, piece.scale)
             }
         }
 
@@ -51,7 +48,7 @@ enum ScreenCaptureService {
             return pieces[0].image
         }
 
-        return composite(pieces, in: rect, outputScale: maxScale)
+        return composite(pieces)
     }
 
     static func capture(windowID: CGWindowID) async -> CGImage? {
@@ -148,6 +145,15 @@ enum ScreenCaptureService {
         let scale = max(CGFloat(filter.pointPixelScale), 1)
         let width = max(1, Int((adjustedRect.width * scale).rounded()))
         let height = max(1, Int((adjustedRect.height * scale).rounded()))
+        let originX = (adjustedRect.origin.x * scale).rounded()
+        let originY = (adjustedRect.origin.y * scale).rounded()
+        let displayBounds = CGDisplayBounds(display.displayID)
+        let pixelRect = CGRect(
+            x: displayBounds.origin.x + originX,
+            y: displayBounds.origin.y + originY,
+            width: CGFloat(width),
+            height: CGFloat(height),
+        )
 
         let config = SCStreamConfiguration()
         config.sourceRect = adjustedRect
@@ -161,31 +167,42 @@ enum ScreenCaptureService {
                 contentFilter: filter,
                 configuration: config,
             )
-            return CapturedPiece(image: image, rect: captureRect, scale: scale)
+            return CapturedPiece(image: image, pixelRect: pixelRect)
         } catch {
             NSLog("ScreenCaptureKit display capture failed: \(error)")
             return nil
         }
     }
 
-    private static func composite(_ pieces: [CapturedPiece], in rect: CGRect, outputScale: CGFloat) -> CGImage? {
-        let width = max(1, Int((rect.width * outputScale).rounded(.up)))
-        let height = max(1, Int((rect.height * outputScale).rounded(.up)))
+    private static func composite(_ pieces: [CapturedPiece]) -> CGImage? {
+        guard let first = pieces.first else { return nil }
+        var minX = first.pixelRect.minX
+        var minY = first.pixelRect.minY
+        var maxX = first.pixelRect.maxX
+        var maxY = first.pixelRect.maxY
+
+        for piece in pieces.dropFirst() {
+            minX = min(minX, piece.pixelRect.minX)
+            minY = min(minY, piece.pixelRect.minY)
+            maxX = max(maxX, piece.pixelRect.maxX)
+            maxY = max(maxY, piece.pixelRect.maxY)
+        }
+
+        let width = max(1, Int((maxX - minX).rounded(.up)))
+        let height = max(1, Int((maxY - minY).rounded(.up)))
         guard let context = makeContext(
-            reference: pieces[0].image,
+            reference: first.image,
             width: width,
             height: height,
         ) else { return nil }
         context.interpolationQuality = .none
 
         for piece in pieces {
-            let offsetX = (piece.rect.origin.x - rect.origin.x) * outputScale
-            let offsetY = (piece.rect.origin.y - rect.origin.y) * outputScale
             let drawRect = CGRect(
-                x: offsetX,
-                y: offsetY,
-                width: piece.rect.width * outputScale,
-                height: piece.rect.height * outputScale,
+                x: piece.pixelRect.origin.x - minX,
+                y: maxY - piece.pixelRect.maxY,
+                width: piece.pixelRect.width,
+                height: piece.pixelRect.height,
             )
             context.draw(piece.image, in: drawRect)
         }
