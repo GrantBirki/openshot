@@ -11,7 +11,7 @@ This document describes the settings available in OneShot.
 
 - `Show selection coordinates` (default: on): Show the selection size next to the cursor while selecting.
 - `Selection dimming` (default: `Full screen`): Choose how the overlay dims the screen (`Full screen` or `Selection only`).
-- `Selection color` (default: `#FFFFFF1E`): Selection-only fill color as RGBA hex (example: `#FFFFFF1E`). Used when `Selection dimming` is `Selection only`. Six-digit values are treated as fully opaque.
+- `Selection color` (default: `#5151513F`): Selection-only fill color as RGBA hex (example: `#5151513F`). Used when `Selection dimming` is `Selection only`. Six-digit values are treated as fully opaque.
 - `Selection visual cue` (default: `Disabled`): Visual cue shown when selection mode starts (`Red pulse` or `Disabled`).
 
 ## Output
@@ -44,6 +44,7 @@ When previews are disabled, screenshots follow the `Default output` setting and 
 ## Hotkeys
 
 - `Selection`: Hotkey for selection capture (default: none).
+- `Scrolling`: Hotkey for scrolling capture (default: none).
 - `Full screen`: Hotkey for full screen capture (default: none).
 - `Window`: Hotkey for window capture (no default).
 
