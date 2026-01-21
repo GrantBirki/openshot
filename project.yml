@@ -13,6 +13,9 @@ targets:
       - Sources
     resources:
       - Sources/Resources/shutter.wav
+      - Sources/Resources/canon70d.wav
+      - Sources/Resources/sony_a7ii.wav
+      - Sources/Resources/pop-pop_canon_ae-1.wav
       - Sources/Resources/Assets.xcassets
     info:
       path: Info.plist
