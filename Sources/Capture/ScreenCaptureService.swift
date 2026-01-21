@@ -29,7 +29,6 @@ enum ScreenCaptureService {
         guard !displaysByID.isEmpty else { return nil }
 
         let excludedWindow = await scWindow(for: excludingWindowID)
-        let excludedApp = excludedWindow == nil && excludingWindowID != nil ? await currentApplication() : nil
 
         var pieces: [CapturedPiece] = []
         var maxScale: CGFloat = 1
@@ -41,7 +40,6 @@ enum ScreenCaptureService {
                 screenFrame: target.frame,
                 captureRect: target.captureRect,
                 excludedWindow: excludedWindow,
-                excludedApp: excludedApp,
             ) {
                 pieces.append(piece)
                 maxScale = max(maxScale, piece.scale)
@@ -137,15 +135,12 @@ enum ScreenCaptureService {
         screenFrame: CGRect,
         captureRect: CGRect,
         excludedWindow: SCWindow?,
-        excludedApp: SCRunningApplication?,
     ) async -> CapturedPiece? {
         let adjustedRect = ScreenCaptureCoordinateConverter.adjustedRect(for: captureRect, screenFrame: screenFrame)
         guard adjustedRect.width > 0, adjustedRect.height > 0 else { return nil }
 
         let filter = if let excludedWindow {
             SCContentFilter(display: display, excludingWindows: [excludedWindow])
-        } else if let excludedApp {
-            SCContentFilter(display: display, excludingApplications: [excludedApp], exceptingWindows: [])
         } else {
             SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
         }
