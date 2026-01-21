@@ -50,6 +50,10 @@ https://github.com/user-attachments/assets/4690d728-9f7f-42df-897e-9499c429ee84
 
 https://github.com/user-attachments/assets/13024d4d-faf4-4778-ab92-02847ba71e52
 
+## Settings
+
+https://github.com/user-attachments/assets/0a693a06-e0c8-4cb9-bc99-64d9f086ef1c
+
 ## 📖 Usage
 
 - End-user guide: [docs/usage.md](docs/usage.md)
